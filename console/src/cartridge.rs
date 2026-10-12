@@ -6,7 +6,7 @@ use std::{fmt, fs, io::self, path::Path};
 const ROM_HEADER_END: u16 = 0x014F;
 
 pub struct Cartridge {
-    rom: Vec<u8>, // raw dump of cartridge's read-only memory
+    pub rom: Vec<u8>, // raw dump of cartridge's read-only memory
 
     // The first 256 bytes will only be visible after the boot loader has run, leaving
     // instruction pointer at address $0100, the entry point of the cartridge
