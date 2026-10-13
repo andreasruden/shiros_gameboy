@@ -1,7 +1,4 @@
-mod opcodes;
-
-use crate::bus::Bus;
-use opcodes::op;
+use crate::{bus::Bus, opcodes::op};
 
 pub struct CPU {
     a: u8, f: u8,  // Accumulator & Flags
