@@ -32,6 +32,62 @@ impl CPU {
         }
     }
 
+    pub fn af(&self) -> u16 {
+        u16::from_be_bytes([self.a, self.f])
+    }
+
+    pub fn set_af(&mut self, af: u16) {
+        let [a, f] = af.to_be_bytes();
+        self.a = a;
+        self.f = f;
+    }
+
+    pub fn bc(&self) -> u16 {
+        u16::from_be_bytes([self.b, self.c])
+    }
+
+    pub fn set_bc(&mut self, bc: u16) {
+        let [b, c] = bc.to_be_bytes();
+        self.b = b;
+        self.c = c;
+    }
+
+    pub fn de(&self) -> u16 {
+        u16::from_be_bytes([self.d, self.e])
+    }
+
+    pub fn set_de(&mut self, de: u16) {
+        let [d, e] = de.to_be_bytes();
+        self.d = d;
+        self.e = e;
+    }
+
+    pub fn hl(&self) -> u16 {
+        u16::from_be_bytes([self.h, self.l])
+    }
+
+    pub fn set_hl(&mut self, hl: u16) {
+        let [h, l] = hl.to_be_bytes();
+        self.h = h;
+        self.l = l;
+    }
+
+    pub fn sp(&self) -> u16 {
+        self.sp
+    }
+
+    pub fn set_sp(&mut self, sp: u16) {
+        self.sp = sp
+    }
+
+    pub fn pc(&self) -> u16 {
+        self.pc
+    }
+
+    pub fn set_pc(&mut self, pc: u16) {
+        self.pc = pc
+    }
+
     pub fn run_boot_loader(&mut self) {
         println!("TODO: Bootloader skipped for now");
         // Just set the CPU state into a valid config:
