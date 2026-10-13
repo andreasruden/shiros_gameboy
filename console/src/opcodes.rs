@@ -1,5 +1,6 @@
 use core::fmt;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Operand {
     // Registers
     A, B, C, D, E, H, L, HL, DerefHL, SP,
@@ -38,7 +39,7 @@ opcodes! {
 }
 
 impl Operand {
-    fn size(self) -> usize {
+    pub fn size(self) -> u16 {
         match self {
             Operand::Imm8 => 1,
             Operand::Imm16 => 2,

@@ -24,6 +24,8 @@ pub fn disassemble_next(code: &[u8], mut pc: u16) -> (String, u16) {
             first = false;
         }
         write!(disassemble, " {}", operand).unwrap();
+
+        pc += operand.size();
     }
 
     (disassemble, pc)

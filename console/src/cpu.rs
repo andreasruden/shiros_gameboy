@@ -1,4 +1,4 @@
-use crate::{bus::Bus, opcodes::op};
+use crate::{bus::Bus, opcodes::{Operand, op}};
 
 pub struct CPU {
     a: u8, f: u8,  // Accumulator & Flags
@@ -102,9 +102,22 @@ impl CPU {
         match opcode {
             op::NOP => self.nop(bus),
             op::INC_A => self.inc_a(bus),
-            op::XOR_AA => self.xor_aa(bus),
+            op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
             _ => unimplemented!("opcode={:02X} at PC={:04X}", opcode, self.pc),
+        }
+    }
+
+    fn fetch_operand(&self, operand: Operand) -> u8 {
+        match operand {
+            Operand::A => self.a,
+            Operand::B => self.b,
+            Operand::C => self.c,
+            Operand::D => self.d,
+            Operand::E => self.e,
+            Operand::H => self.h,
+            Operand::L => self.l,
+            _ => todo!(),
         }
     }
 
@@ -147,13 +160,13 @@ impl CPU {
         println!("INC A (A = {:02X})", self.a);
     }
 
-    fn xor_aa(&mut self, _bus: &mut Bus) {
-        self.a = 0;
+    fn xor(&mut self, _bus: &mut Bus, operand: Operand) {
+        self.a = self.a ^ self.fetch_operand(operand);
         self.set_flag(Flag::Z);
         self.clear_flag(Flag::N);
         self.clear_flag(Flag::H);
         self.clear_flag(Flag::Z);
-        println!("XOR A, A (A = {:02X})", self.a);
+        println!("XOR A, {} (A = {:02X})", operand, self.a);
     }
 
     fn jp(&mut self, bus: &mut Bus) {
