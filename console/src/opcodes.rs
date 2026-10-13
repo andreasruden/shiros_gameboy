@@ -1,19 +1,11 @@
+use core::fmt;
+
 pub enum Operand {
     // Registers
     A, B, C, D, E, H, L, HL, DerefHL, SP,
 
     // Immediates
     Imm8, Imm16
-}
-
-impl Operand {
-    fn size(self) -> usize {
-        match self {
-            Operand::Imm8 => 1,
-            Operand::Imm16 => 2,
-            _ => 0,
-        }
-    }
 }
 
 macro_rules! opcodes {
@@ -43,4 +35,34 @@ opcodes! {
     INC_A      = 0x3C, "INC", A;
     XOR_AA     = 0xAF, "XOR", A, A;
     JP         = 0xC3, "JP", Imm16;
+}
+
+impl Operand {
+    fn size(self) -> usize {
+        match self {
+            Operand::Imm8 => 1,
+            Operand::Imm16 => 2,
+            _ => 0,
+        }
+    }
+}
+
+impl fmt::Display for Operand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Operand::A => "A",
+            Operand::B => "B",
+            Operand::C => "C",
+            Operand::D => "D",
+            Operand::E => "E",
+            Operand::H => "H",
+            Operand::L => "L",
+            Operand::HL => "HL",
+            Operand::DerefHL => "[HL]",
+            Operand::SP => "SP",
+            Operand::Imm8 => "Imm8",
+            Operand::Imm16 => "Imm16",
+        };
+        write!(f, "{s}")
+    }
 }
