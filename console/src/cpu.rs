@@ -1,4 +1,4 @@
-use crate::{bus::Bus, opcodes::{Operand, op}};
+use crate::{bus::Bus, gameboy::StopReason, opcodes::{Operand, op}};
 
 pub struct CPU {
     a: u8, f: u8,  // Accumulator & Flags
@@ -7,6 +7,8 @@ pub struct CPU {
     h: u8, l: u8,
     sp: u16,  // Stack Pointer
     pc: u16,  // Program Counter
+    debug: bool,
+    break_counter: i32, // debug break in this many instructions or -1
 }
 
 #[repr(u8)]
@@ -26,6 +28,8 @@ impl CPU {
             h: 0, l: 0,
             sp: 0,
             pc: 0,
+            debug: false,
+            break_counter: -1,
         }
     }
 
@@ -85,8 +89,23 @@ impl CPU {
         self.pc = pc
     }
 
-    pub fn run_boot_loader(&mut self) {
+    pub fn set_debugged(&mut self, state: bool) {
+        self.debug = state;
+    }
+
+    pub fn debug_stepi(&mut self, instructions: i32) {
+        assert!(self.debug, "must be debugged");
+
+        self.break_counter = instructions;
+    }
+
+    pub fn prepare_boot_loader(&mut self) {
         println!("TODO: Bootloader skipped for now");
+
+        if self.debug {
+            self.break_counter = 0;
+        }
+
         // Just set the CPU state into a valid config:
         self.a = 0x01; self.f = 0xB0;
         self.b = 0x00; self.c = 0x13;
@@ -96,9 +115,17 @@ impl CPU {
         self.pc = 0x0100;
     }
 
-    pub fn run_instruction(&mut self, bus: &mut Bus) {
-        let opcode = self.fetch_pc(bus);
+    pub fn run_instruction(&mut self, bus: &mut Bus) -> StopReason {
+        if self.debug {
+            if self.break_counter == 0 {
+                self.break_counter = -1;
+                return StopReason::Step;
+            } else if self.break_counter > 0 {
+                self.break_counter -= 1;
+            }
+        }
 
+        let opcode = self.fetch_pc(bus);
         match opcode {
             op::NOP => self.nop(bus),
             op::INC_A => self.inc_a(bus),
@@ -106,6 +133,8 @@ impl CPU {
             op::JP => self.jp(bus),
             _ => unimplemented!("opcode={:02X} at PC={:04X}", opcode, self.pc),
         }
+
+        StopReason::NA
     }
 
     fn fetch_operand(&self, operand: Operand) -> u8 {

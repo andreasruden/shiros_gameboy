@@ -1,4 +1,7 @@
+mod debugger;
+
 use console::{Cartridge, GameBoy};
+use crate::debugger::Debugger;
 
 struct Args {
     cartridge_path: String,
@@ -13,8 +16,14 @@ fn main() -> Result<(), lexopt::Error> {
 
     let mut gameboy = GameBoy::new();
     gameboy.insert_cartridge(cartridge);
-    gameboy.power_on();
-    gameboy.run_frame();
+
+    if args.debugging_enabled {
+        let mut debugger = Debugger::new(gameboy);
+        debugger.start();
+    } else {
+        gameboy.power_on();
+        gameboy.run();
+    }
 
     Ok(())
 }

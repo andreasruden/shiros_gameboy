@@ -5,8 +5,16 @@ use crate::cpu::CPU;
 use crate::cartridge::Cartridge;
 
 pub struct GameBoy {
-    cpu: CPU,
-    bus: Bus,
+    pub cpu: CPU,
+    pub bus: Bus,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum StopReason {
+    Breakpoint(u32),
+    Step,
+    Halt,
+    NA,
 }
 
 impl GameBoy {
@@ -22,12 +30,21 @@ impl GameBoy {
     }
 
     pub fn power_on(&mut self) {
-        self.cpu.run_boot_loader();
+        self.cpu.prepare_boot_loader();
     }
 
-    pub fn run_frame(&mut self) {
+    pub fn run(&mut self) -> StopReason {
         for _i in 0..100 {
-            self.cpu.run_instruction(&mut self.bus);
+            let res = self.cpu.run_instruction(&mut self.bus);
+            if res != StopReason::NA {
+                return res;
+            }
         }
+
+        StopReason::Halt
+    }
+
+    pub fn set_debugged(&mut self, state: bool) {
+        self.cpu.set_debugged(state);
     }
 }
