@@ -128,6 +128,7 @@ impl CPU {
         let opcode = self.fetch_pc(bus);
         match opcode {
             op::NOP => self.nop(bus),
+            op::LD_HL_IMM16 => self.ld_word(bus, Operand::HL, Operand::Imm16),
             op::INC_A => self.inc_a(bus),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
@@ -204,5 +205,24 @@ impl CPU {
         let addr = u16::from_le_bytes([lo, hi]);
         self.pc = addr;
         println!("JP {:04X}", addr);
+    }
+
+    fn ld_word(&mut self, bus: &mut Bus, dst: Operand, src: Operand) {
+        let val: u16;
+        if src == Operand::Imm16 {
+            val = u16::from_le_bytes([self.fetch_pc(bus), self.fetch_pc(bus)]);
+        } else {
+            unimplemented!("src operand {src} not implemented yet");
+        }
+
+        match dst {
+            Operand::BC => self.set_bc(val),
+            Operand::DE => self.set_de(val),
+            Operand::HL => self.set_hl(val),
+            Operand::SP => self.set_sp(val),
+            _ => panic!("Unsupported destinations"),
+        }
+
+        println!("LD {}, {:04X}", dst, val);
     }
 }
