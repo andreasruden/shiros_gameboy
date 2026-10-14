@@ -128,7 +128,13 @@ impl CPU {
         let opcode = self.fetch_pc(bus);
         match opcode {
             op::NOP => self.nop(bus),
+            op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
+            op::LD_C_IMM8 => self.ld_byte(bus, Operand::C, Operand::Imm8),
             op::LD_HL_IMM16 => self.ld_word(bus, Operand::HL, Operand::Imm16),
+            op::LDI_HL_A => self.ld_byte(bus, Operand::DerefHLPlus, Operand::A),
+            op::LDI_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLPlus),
+            op::LDD_HL_A => self.ld_byte(bus, Operand::DerefHLMinus, Operand::A),
+            op::LDD_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLMinus),
             op::INC_A => self.inc_a(bus),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
@@ -224,5 +230,41 @@ impl CPU {
         }
 
         println!("LD {}, {:04X}", dst, val);
+    }
+
+    fn ld_byte(&mut self, bus: &mut Bus, dst: Operand, src: Operand) {
+        let val: u8 = match src {
+            Operand::Imm8 => self.fetch_pc(bus),
+            Operand::DerefHLMinus | Operand::DerefHLPlus | Operand::DerefHL => bus.read(self.hl()),
+            Operand::A => self.a,
+            Operand::B => self.b,
+            Operand::C => self.c,
+            Operand::D => self.d,
+            Operand::E => self.e,
+            Operand::H => self.h,
+            Operand::L => self.l,
+            _ => unimplemented!("src operand {src} not implemented yet"),
+        };
+
+        match dst {
+            Operand::A => self.a = val,
+            Operand::B => self.b = val,
+            Operand::C => self.c = val,
+            Operand::D => self.d = val,
+            Operand::E => self.e = val,
+            Operand::H => self.h = val,
+            Operand::L => self.l = val,
+            Operand::DerefHLMinus | Operand::DerefHLPlus | Operand::DerefHL => bus.write(self.hl(), val),
+            _ => panic!("Unsupported destinations"),
+        }
+
+        if dst == Operand::DerefHLPlus || src == Operand::DerefHLPlus {
+            self.set_hl(self.hl().wrapping_add(1));
+        }
+        else if dst == Operand::DerefHLMinus || src == Operand::DerefHLMinus {
+            self.set_hl(self.hl().wrapping_sub(1));
+        }
+
+        println!("LD {}, {:02X}", dst, val);
     }
 }

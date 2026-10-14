@@ -1,13 +1,16 @@
 use crate::Cartridge;
 
 pub struct Bus {
+    // FIXME: these things should not be owned by the Bus if avoidable
     pub cartridge: Option<Cartridge>,
+    pub wram: [u8; 0x2000],
 }
 
 impl Bus {
     pub fn new() -> Self {
         Self {
             cartridge: None,
+            wram: [0; 0x2000],
         }
     }
 
@@ -19,6 +22,9 @@ impl Bus {
     }
 
     pub fn write(&mut self, addr: u16, byte: u8) {
-        todo!()
+        match addr {
+            0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize] = byte,
+            _ => todo!(),
+        };
     }
 }

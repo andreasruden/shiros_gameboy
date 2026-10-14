@@ -3,7 +3,7 @@ use core::fmt;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Operand {
     // Registers
-    AF, A, BC, B, C, DE, D, E, HL, H, L, DerefHL, SP,
+    AF, A, BC, B, C, DE, D, E, HL, H, L, DerefHL, DerefHLPlus, DerefHLMinus, SP,
 
     // Immediates
     Imm8, Imm16
@@ -33,7 +33,13 @@ macro_rules! opcodes {
 
 opcodes! {
     NOP         = 0x00, "NOP";
+    LD_B_IMM8   = 0x06, "LD", B, Imm8;
+    LD_C_IMM8   = 0x0E, "LD", C, Imm8;
     LD_HL_IMM16 = 0x21, "LD", HL, Imm16;
+    LDI_HL_A    = 0x22, "LD", DerefHLPlus, A;
+    LDI_A_HL    = 0x2A, "LD", A, DerefHLPlus;
+    LDD_HL_A    = 0x32, "LD", DerefHLMinus, A;
+    LDD_A_HL    = 0x3A, "LD", A, DerefHLMinus;
     INC_A       = 0x3C, "INC", A;
     XOR_AA      = 0xAF, "XOR", A, A;
     JP          = 0xC3, "JP", Imm16;
@@ -64,6 +70,8 @@ impl fmt::Display for Operand {
             Operand::H => "H",
             Operand::L => "L",
             Operand::DerefHL => "[HL]",
+            Operand::DerefHLPlus => "[HL+]",
+            Operand::DerefHLMinus => "[HL-]",
             Operand::SP => "SP",
             Operand::Imm8 => "imm8",
             Operand::Imm16 => "imm16",
