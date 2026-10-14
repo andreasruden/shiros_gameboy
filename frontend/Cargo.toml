@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 console = { path = "../console", package = "gb-console" }
+lexopt = "0.3.2"
