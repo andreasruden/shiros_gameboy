@@ -1,4 +1,4 @@
-use crate::{bus::CpuBus, gameboy::StopReason, opcodes::{Operand, op}};
+use crate::{bus::Bus, gameboy::StopReason, opcodes::{Operand, op}};
 
 pub struct CPU {
     a: u8, f: u8,  // Accumulator & Flags
@@ -14,12 +14,11 @@ pub struct CPU {
     break_counter: i32, // debug break in this many instructions or -1
 }
 
-#[repr(u8)]
-enum Flag {
-    Z = 1 << 7,  // zero
-    N = 1 << 6,  // subtraction
-    H = 1 << 5,  // half carry
-    C = 1 << 4,  // carry
+mod flag {
+    pub const Z: u8 = 1 << 7;  // zero
+    pub const N: u8 = 1 << 6;  // subtraction
+    pub const H: u8 = 1 << 5;  // half carry
+    pub const C: u8 = 1 << 4;  // carry
 }
 
 #[derive(PartialEq, Eq)]
@@ -129,7 +128,7 @@ impl CPU {
 
     // Returns a reason for "stopping", if the reason is cycle that indluces how many
     // T-cycles the emulation advanced in this step
-    pub fn step(&mut self, bus: &mut CpuBus) -> StopReason {
+    pub fn step(&mut self, bus: &mut impl Bus) -> StopReason {
         if let Some(reason) = self.should_break() {
             return reason;
         }
@@ -150,7 +149,7 @@ impl CPU {
     }
 
     // implements the execute FSM
-    fn execute_cycle(&mut self, bus: &mut CpuBus) -> ExecState {
+    fn execute_cycle(&mut self, bus: &mut impl Bus) -> ExecState {
         match self.ir {
             op::NOP => self.nop(bus),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
@@ -180,13 +179,13 @@ impl CPU {
         None
     }
 
-    fn load_pc(&mut self, bus: &mut CpuBus) -> u8 {
+    fn load_pc(&mut self, bus: &mut impl Bus) -> u8 {
         let byte = bus.read(self.pc);
         self.pc += 1;
         byte
     }
 
-    fn load_mem(&mut self, bus: &mut CpuBus, src: Operand) -> u8 {
+    fn load_mem(&mut self, bus: &mut impl Bus, src: Operand) -> u8 {
         match src {
             Operand::Imm8 => self.load_pc(bus),
             Operand::DerefHL => bus.read(self.hl()),
@@ -204,7 +203,7 @@ impl CPU {
         }
     }
 
-    fn store_mem(&mut self, bus: &mut CpuBus, dst: Operand, byte: u8) {
+    fn store_mem(&mut self, bus: &mut impl Bus, dst: Operand, byte: u8) {
         match dst {
             Operand::DerefHL => bus.write(self.hl(), byte),
             Operand::DerefHLPlus => {
@@ -247,15 +246,15 @@ impl CPU {
         }
     }
 
-    fn set_flag(&mut self, flag: Flag) {
-        self.f |= flag as u8;
+    fn set_flag(&mut self, flag: u8) {
+        self.f |= flag;
     }
 
-    fn clear_flag(&mut self, flag: Flag) {
+    fn clear_flag(&mut self, flag: u8) {
         self.f &= !(flag as u8);
     }
 
-    fn update_flag(&mut self, flag: Flag, value: bool) {
+    fn update_flag(&mut self, flag: u8, value: bool) {
         if value {
             self.set_flag(flag);
         } else {
@@ -263,43 +262,43 @@ impl CPU {
         }
     }
 
-    fn is_set(&self, flag: Flag) -> bool {
+    fn is_set(&self, flag: u8) -> bool {
         self.f & (flag as u8) != 0
     }
 
-    fn nop(&mut self, _bus: &mut CpuBus) -> ExecState {
+    fn nop(&mut self, _bus: &mut impl Bus) -> ExecState {
         println!("NOP");
         ExecState::Done
     }
 
-    fn inc_a(&mut self, _bus: &mut CpuBus) -> ExecState {
+    fn inc_a(&mut self, _bus: &mut impl Bus) -> ExecState {
         let value = self.a;
         let result = value.wrapping_add(1);
-        self.update_flag(Flag::Z, result == 0);
-        self.clear_flag(Flag::N);
-        self.update_flag(Flag::H, (value & 0x0F) == 0x0F);
-        self.a = value;
+        self.update_flag(flag::Z, result == 0);
+        self.clear_flag(flag::N);
+        self.update_flag(flag::H, (value & 0x0F) == 0x0F);
+        self.a = result;
         println!("INC A (A = {:02X})", self.a);
         ExecState::Done
     }
 
-    fn xor(&mut self, _bus: &mut CpuBus, operand: Operand) -> ExecState {
+    fn xor(&mut self, _bus: &mut impl Bus, operand: Operand) -> ExecState {
         match operand {
             Operand::A => { self.z = self.a; }
             _ => todo!(),
         };
 
         self.a = self.a ^ self.z;
-        self.set_flag(Flag::Z);
-        self.clear_flag(Flag::N);
-        self.clear_flag(Flag::H);
-        self.clear_flag(Flag::Z);
+        self.set_flag(flag::Z);
+        self.clear_flag(flag::N);
+        self.clear_flag(flag::H);
+        self.clear_flag(flag::C);
 
         println!("XOR A, {} (A = {:02X})", operand, self.a);
         ExecState::Done
     }
 
-    fn jp(&mut self, bus: &mut CpuBus) -> ExecState {
+    fn jp(&mut self, bus: &mut impl Bus) -> ExecState {
         match self.m {
             0 => ExecState::Partial,
             1 => { self.z = self.load_pc(bus); ExecState::Partial },
@@ -314,7 +313,7 @@ impl CPU {
         }
     }
 
-    fn ld_word(&mut self, bus: &mut CpuBus, dst: Operand, src: Operand) -> ExecState {
+    fn ld_word(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
         match self.m {
             0 => ExecState::Partial,
             1 => {
@@ -331,9 +330,7 @@ impl CPU {
                 } else {
                     unimplemented!("src operand {src} not implemented yet");
                 }
-                ExecState::Partial
-            },
-            3 => {
+
                 let val = u16::from_le_bytes([self.z, self.w]);
                 match dst {
                     Operand::BC => self.set_bc(val),
@@ -344,12 +341,12 @@ impl CPU {
                 }
                 println!("LD {}, {:04X}", dst, val);
                 ExecState::Done
-            }
+            },
             _ => unreachable!(),
         }
     }
 
-    fn ld_byte(&mut self, bus: &mut CpuBus, dst: Operand, src: Operand) -> ExecState {
+    fn ld_byte(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
         // LD can be from reg-to-reg, mem-to-reg or reg-to-mem
         match self.m {
             0 => {
@@ -376,5 +373,190 @@ impl CPU {
 
         println!("LD {}, {:02X}", dst, self.z);
         ExecState::Done
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, PartialEq, Eq)]
+    enum Cycle {
+        R(u16, u8),
+        W(u16, u8),
+        Idle,
+    }
+    use Cycle::*;
+
+    struct MockBus {
+        cycles: Vec<Cycle>,
+        pos: usize,
+    }
+
+    impl MockBus {
+        fn next(&mut self, actual: Cycle) -> &Cycle {
+            let expected = self.cycles.get(self.pos)
+                .unwrap_or_else(|| panic!("unexpected bus access {actual:04X?} after all cycles"));
+            self.pos += 1;
+            expected
+        }
+    }
+
+    impl Bus for MockBus {
+        fn read(&mut self, addr: u16) -> u8 {
+            match self.next(R(addr, 0)) {
+                &R(a, v) if a == addr => v,
+                other => panic!("expected {other:04X?}, got read at {addr:04X}"),
+            }
+        }
+
+        fn write(&mut self, addr: u16, byte: u8) {
+            match self.next(W(addr, byte)) {
+                &W(a, v) if a == addr && v == byte => {},
+                other => panic!("expected {other:04X?}, got {:04X?}", W(addr, byte)),
+            }
+        }
+    }
+
+    fn set_reg(cpu: &mut CPU, reg: &str, val: u16) {
+        match reg {
+            "a" => cpu.a = val as u8,
+            "f" => cpu.f = val as u8,
+            "b" => cpu.b = val as u8,
+            "c" => cpu.c = val as u8,
+            "d" => cpu.d = val as u8,
+            "e" => cpu.e = val as u8,
+            "h" => cpu.h = val as u8,
+            "l" => cpu.l = val as u8,
+            "af" => cpu.set_af(val),
+            "bc" => cpu.set_bc(val),
+            "de" => cpu.set_de(val),
+            "hl" => cpu.set_hl(val),
+            "sp" => cpu.sp = val,
+            "pc" => cpu.pc = val,
+            _ => panic!("unknown register {reg}"),
+        }
+    }
+
+    fn regs(cpu: &CPU) -> [(&'static str, u16); 10] {
+        [
+            ("a", cpu.a as u16), ("f", cpu.f as u16),
+            ("b", cpu.b as u16), ("c", cpu.c as u16),
+            ("d", cpu.d as u16), ("e", cpu.e as u16),
+            ("h", cpu.h as u16), ("l", cpu.l as u16),
+            ("sp", cpu.sp), ("pc", cpu.pc),
+        ]
+    }
+
+    fn run(given: &[(&str, u16)], cycles: Vec<Cycle>, expect: &[(&str, u16)]) {
+        let mut cpu = CPU::new();
+        cpu.pc = 0x0100;
+        for &(reg, val) in given {
+            set_reg(&mut cpu, reg, val);
+        }
+
+        let mut expected = CPU::new();
+        for (reg, val) in regs(&cpu) {
+            set_reg(&mut expected, reg, val);
+        }
+        for &(reg, val) in expect {
+            set_reg(&mut expected, reg, val);
+        }
+
+        let mut bus = MockBus { cycles, pos: 0 };
+        for cycle in 1.. {
+            let pos = bus.pos;
+            cpu.step(&mut bus);
+            if bus.pos == pos && bus.cycles.get(pos) == Some(&Idle) {
+                bus.pos += 1;
+            }
+            assert_eq!(bus.pos, cycle, "cycle {cycle} did not match expectation");
+            if cpu.m == 0 {
+                break;
+            }
+        }
+
+        assert_eq!(bus.pos, bus.cycles.len(), "unconsumed cycles: {:04X?}", &bus.cycles[bus.pos..]);
+        let (actual, expected) = (regs(&cpu), regs(&expected));
+        assert!(actual == expected, "registers differ\n  actual: {actual:04X?}\nexpected: {expected:04X?}");
+    }
+
+    macro_rules! cpu_tests {
+        ($(
+            $name:ident:
+                $(given { $($greg:ident: $gval:expr),* $(,)? })?
+                cycles [$($cycle:expr),* $(,)?]
+                expect { $($ereg:ident: $eval:expr),* $(,)? }
+        )*) => {
+            $(
+                #[test]
+                fn $name() {
+                    run(
+                        &[$($((stringify!($greg), $gval)),*)?],
+                        vec![$($cycle),*],
+                        &[$((stringify!($ereg), $eval)),*],
+                    );
+                }
+            )*
+        };
+    }
+
+    cpu_tests! {
+        nop:
+            cycles [R(0x0100, op::NOP)]
+            expect { pc: 0x101 }
+
+        ld_hl_imm16:
+            cycles [R(0x0100, op::LD_HL_IMM16), R(0x0101, 0x42), R(0x0102, 0x42)]
+            expect { pc: 0x0103, hl: 0x4242 }
+
+        ldi_hl_a:
+            given  { hl: 0xC000, a: 42 }
+            cycles [R(0x0100, op::LDI_HL_A), W(0xC000, 42)]
+            expect { pc: 0x0101, a: 42, hl: 0xC001 }
+
+        ldi_a_hl:
+            given  { hl: 0xC000 }
+            cycles [R(0x0100, op::LDI_A_HL), R(0xC000, 42)]
+            expect { pc: 0x0101, a: 42, hl: 0xC001 }
+
+        ldd_hl_a:
+            given  { hl: 0xC000, a: 42 }
+            cycles [R(0x0100, op::LDD_HL_A), W(0xC000, 42)]
+            expect { pc: 0x0101, a: 42, hl: 0xBFFF }
+
+        ldd_a_hl:
+            given  { hl: 0xC000 }
+            cycles [R(0x0100, op::LDD_A_HL), R(0xC000, 42)]
+            expect { pc: 0x0101, a: 42, hl: 0xBFFF }
+
+        inc_a:
+            given { a: 0x3F, f: (flag::Z | flag::N).into() }
+            cycles [R(0x100, op::INC_A)]
+            expect { pc: 0x101, a: 0x40, f: flag::H.into() }
+
+        xor_aa:
+            given { a: 42 }
+            cycles [R(0x100, op::XOR_AA)]
+            expect { pc:0x101, a: 0, f: flag::Z.into() }
+
+        jp:
+            cycles [R(0x100, op::JP), R(0x101, 0xCC), R(0x102, 0xDD), Idle]
+            expect { pc: 0xDDCC }
+    }
+
+    macro_rules! ld_r_imm8 {
+        ($($name:ident: $opcode:ident, $reg:ident;)*) => {
+            cpu_tests! {$(
+                $name:
+                    cycles [R(0x0100, op::$opcode), R(0x0101, 0x42)]
+                    expect { pc: 0x0102, $reg: 0x42 }
+            )*}
+        };
+    }
+
+    ld_r_imm8! {
+        ld_b_imm8: LD_B_IMM8, b;
+        ld_c_imm8: LD_C_IMM8, c;
     }
 }
