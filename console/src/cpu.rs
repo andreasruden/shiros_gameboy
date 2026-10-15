@@ -1,4 +1,4 @@
-use crate::{bus::Bus, gameboy::StopReason, opcodes::{Operand, op}};
+use crate::{bus::CpuBus, gameboy::StopReason, opcodes::{Operand, op}};
 
 pub struct CPU {
     a: u8, f: u8,  // Accumulator & Flags
@@ -115,7 +115,7 @@ impl CPU {
         self.pc = 0x0100;
     }
 
-    pub fn run_instruction(&mut self, bus: &mut Bus) -> StopReason {
+    pub fn run_instruction(&mut self, bus: &mut CpuBus) -> StopReason {
         if self.debug {
             if self.break_counter == 0 {
                 self.break_counter = -1;
@@ -157,7 +157,7 @@ impl CPU {
         }
     }
 
-    fn fetch_pc(&mut self, bus: &mut Bus) -> u8 {
+    fn fetch_pc(&mut self, bus: &mut CpuBus) -> u8 {
         let byte = bus.read(self.pc);
         self.pc += 1;
         byte
@@ -183,11 +183,11 @@ impl CPU {
         self.f & (flag as u8) != 0
     }
 
-    fn nop(&mut self, _bus: &mut Bus) {
+    fn nop(&mut self, _bus: &mut CpuBus) {
         println!("NOP");
     }
 
-    fn inc_a(&mut self, _bus: &mut Bus) {
+    fn inc_a(&mut self, _bus: &mut CpuBus) {
         let value = self.a;
         let result = value.wrapping_add(1);
         self.update_flag(Flag::Z, result == 0);
@@ -196,7 +196,7 @@ impl CPU {
         println!("INC A (A = {:02X})", self.a);
     }
 
-    fn xor(&mut self, _bus: &mut Bus, operand: Operand) {
+    fn xor(&mut self, _bus: &mut CpuBus, operand: Operand) {
         self.a = self.a ^ self.fetch_operand(operand);
         self.set_flag(Flag::Z);
         self.clear_flag(Flag::N);
@@ -205,7 +205,7 @@ impl CPU {
         println!("XOR A, {} (A = {:02X})", operand, self.a);
     }
 
-    fn jp(&mut self, bus: &mut Bus) {
+    fn jp(&mut self, bus: &mut CpuBus) {
         let lo = self.fetch_pc(bus);
         let hi = self.fetch_pc(bus);
         let addr = u16::from_le_bytes([lo, hi]);
@@ -213,7 +213,7 @@ impl CPU {
         println!("JP {:04X}", addr);
     }
 
-    fn ld_word(&mut self, bus: &mut Bus, dst: Operand, src: Operand) {
+    fn ld_word(&mut self, bus: &mut CpuBus, dst: Operand, src: Operand) {
         let val: u16;
         if src == Operand::Imm16 {
             val = u16::from_le_bytes([self.fetch_pc(bus), self.fetch_pc(bus)]);
@@ -232,7 +232,7 @@ impl CPU {
         println!("LD {}, {:04X}", dst, val);
     }
 
-    fn ld_byte(&mut self, bus: &mut Bus, dst: Operand, src: Operand) {
+    fn ld_byte(&mut self, bus: &mut CpuBus, dst: Operand, src: Operand) {
         let val: u8 = match src {
             Operand::Imm8 => self.fetch_pc(bus),
             Operand::DerefHLMinus | Operand::DerefHLPlus | Operand::DerefHL => bus.read(self.hl()),

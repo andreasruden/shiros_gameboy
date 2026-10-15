@@ -1,22 +1,17 @@
 use crate::Cartridge;
 
-pub struct Bus {
-    // FIXME: these things should not be owned by the Bus if avoidable
-    pub cartridge: Option<Cartridge>,
-    pub wram: [u8; 0x2000],
+pub struct CpuBus<'a> {
+    pub cartridge: &'a mut Option<Cartridge>,
+    pub wram: &'a mut [u8; 0x2000],
 }
 
-impl Bus {
-    pub fn new() -> Self {
-        Self {
-            cartridge: None,
-            wram: [0; 0x2000],
-        }
-    }
-
+impl CpuBus<'_> {
     pub fn read(&self, addr: u16) -> u8 {
         if (0x0000..0x4000).contains(&addr) {
-            return self.cartridge.as_ref().unwrap().rom[addr as usize];
+            return match self.cartridge.as_ref() {
+                None => 0,
+                Some(c) => c.rom[addr as usize],
+            };
         }
         todo!()
     }

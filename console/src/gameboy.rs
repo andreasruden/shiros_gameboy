@@ -1,12 +1,13 @@
 // The main struct for the GameBoy, owns the components
 
-use crate::bus::Bus;
+use crate::bus::CpuBus;
 use crate::cpu::CPU;
 use crate::cartridge::Cartridge;
 
 pub struct GameBoy {
     pub cpu: CPU,
-    pub bus: Bus,
+    pub cartridge: Option<Cartridge>,
+    pub wram: [u8; 0x2000],
 }
 
 #[derive(PartialEq, Eq)]
@@ -21,12 +22,13 @@ impl GameBoy {
     pub fn new() -> Self {
         GameBoy {
             cpu: CPU::new(),
-            bus: Bus::new(),
+            cartridge: None,
+            wram: [0; 0x2000],
         }
     }
 
     pub fn insert_cartridge(&mut self, cartridge: Cartridge) {
-        self.bus.cartridge = Some(cartridge);
+        self.cartridge = Some(cartridge);
     }
 
     pub fn power_on(&mut self) {
@@ -35,7 +37,10 @@ impl GameBoy {
 
     pub fn run(&mut self) -> StopReason {
         for _i in 0..100 {
-            let res = self.cpu.run_instruction(&mut self.bus);
+            let res = self.cpu.run_instruction(&mut CpuBus {
+                cartridge: &mut self.cartridge,
+                wram: &mut self.wram
+            });
             if res != StopReason::NA {
                 return res;
             }
