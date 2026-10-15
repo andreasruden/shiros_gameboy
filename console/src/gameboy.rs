@@ -14,8 +14,8 @@ pub struct GameBoy {
 pub enum StopReason {
     Breakpoint(u32),
     Step,
+    Cycle(u8),
     Halt,
-    NA,
 }
 
 impl GameBoy {
@@ -37,12 +37,15 @@ impl GameBoy {
 
     pub fn run(&mut self) -> StopReason {
         for _i in 0..100 {
-            let res = self.cpu.run_instruction(&mut CpuBus {
+            let res = self.cpu.step(&mut CpuBus {
                 cartridge: &mut self.cartridge,
                 wram: &mut self.wram
             });
-            if res != StopReason::NA {
-                return res;
+
+            match res {
+                StopReason::Step => return StopReason::Step,
+                StopReason::Cycle(_) => { /* todo */ },
+                _ => unreachable!(),
             }
         }
 

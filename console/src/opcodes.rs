@@ -53,6 +53,11 @@ impl Operand {
             _ => 0,
         }
     }
+
+    pub fn is_mem(self) -> bool {
+        matches!(self, Operand::Imm8 | Operand::Imm16 | Operand::DerefHL | Operand::DerefHLPlus |
+            Operand::DerefHLMinus)
+    }
 }
 
 impl fmt::Display for Operand {

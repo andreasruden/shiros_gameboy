@@ -5,8 +5,11 @@ pub struct CPU {
     b: u8, c: u8,
     d: u8, e: u8,
     h: u8, l: u8,
-    sp: u16,  // Stack Pointer
-    pc: u16,  // Program Counter
+    sp: u16, // Stack Pointer
+    pc: u16, // Program Counter
+    m: u8,   // counts m cycle into current instruction (0..=4)
+    ir: u8,  // instruction register
+    z: u8, w: u8,  // internal registers
     debug: bool,
     break_counter: i32, // debug break in this many instructions or -1
 }
@@ -19,6 +22,12 @@ enum Flag {
     C = 1 << 4,  // carry
 }
 
+#[derive(PartialEq, Eq)]
+enum ExecState {
+    Done,
+    Partial,
+}
+
 impl CPU {
     pub fn new() -> Self {
         Self {
@@ -28,6 +37,9 @@ impl CPU {
             h: 0, l: 0,
             sp: 0,
             pc: 0,
+            m: 0,
+            ir: 0,
+            z: 0, w: 0,
             debug: false,
             break_counter: -1,
         }
@@ -115,18 +127,31 @@ impl CPU {
         self.pc = 0x0100;
     }
 
-    pub fn run_instruction(&mut self, bus: &mut CpuBus) -> StopReason {
-        if self.debug {
-            if self.break_counter == 0 {
-                self.break_counter = -1;
-                return StopReason::Step;
-            } else if self.break_counter > 0 {
-                self.break_counter -= 1;
-            }
+    // Returns a reason for "stopping", if the reason is cycle that indluces how many
+    // T-cycles the emulation advanced in this step
+    pub fn step(&mut self, bus: &mut CpuBus) -> StopReason {
+        if let Some(reason) = self.should_break() {
+            return reason;
         }
 
-        let opcode = self.fetch_pc(bus);
-        match opcode {
+        // M0: Instruction Fetch
+        if self.m == 0 {
+            self.ir = self.load_pc(bus);
+        }
+
+        // M1-4: nth Data Cycle
+        if self.execute_cycle(bus) == ExecState::Done {
+            self.m = 0;
+        } else {
+            self.m += 1;
+        }
+
+        StopReason::Cycle(4)
+    }
+
+    // implements the execute FSM
+    fn execute_cycle(&mut self, bus: &mut CpuBus) -> ExecState {
+        match self.ir {
             op::NOP => self.nop(bus),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
             op::LD_C_IMM8 => self.ld_byte(bus, Operand::C, Operand::Imm8),
@@ -138,14 +163,64 @@ impl CPU {
             op::INC_A => self.inc_a(bus),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
-            _ => unimplemented!("opcode={:02X} at PC={:04X}", opcode, self.pc),
+            _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc),
         }
-
-        StopReason::NA
     }
 
-    fn fetch_operand(&self, operand: Operand) -> u8 {
-        match operand {
+    fn should_break(&mut self) -> Option<StopReason> {
+        if self.debug && self.m == 0 {
+            if self.break_counter == 0 {
+                self.break_counter = -1;
+                return Some(StopReason::Step);
+            } else if self.break_counter > 0 {
+                self.break_counter -= 1;
+            }
+        }
+
+        None
+    }
+
+    fn load_pc(&mut self, bus: &mut CpuBus) -> u8 {
+        let byte = bus.read(self.pc);
+        self.pc += 1;
+        byte
+    }
+
+    fn load_mem(&mut self, bus: &mut CpuBus, src: Operand) -> u8 {
+        match src {
+            Operand::Imm8 => self.load_pc(bus),
+            Operand::DerefHL => bus.read(self.hl()),
+            Operand::DerefHLPlus => {
+                let addr = self.hl();
+                self.set_hl(self.hl().wrapping_add(1));
+                bus.read(addr)
+            },
+            Operand::DerefHLMinus => {
+                let addr = self.hl();
+                self.set_hl(self.hl().wrapping_sub(1));
+                bus.read(addr)
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    fn store_mem(&mut self, bus: &mut CpuBus, dst: Operand, byte: u8) {
+        match dst {
+            Operand::DerefHL => bus.write(self.hl(), byte),
+            Operand::DerefHLPlus => {
+                bus.write(self.hl(), byte);
+                self.set_hl(self.hl().wrapping_add(1));
+            },
+            Operand::DerefHLMinus => {
+                bus.write(self.hl(), byte);
+                self.set_hl(self.hl().wrapping_sub(1));
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    fn reg8(&self, reg: Operand) -> u8 {
+        match reg {
             Operand::A => self.a,
             Operand::B => self.b,
             Operand::C => self.c,
@@ -153,14 +228,23 @@ impl CPU {
             Operand::E => self.e,
             Operand::H => self.h,
             Operand::L => self.l,
-            _ => todo!(),
+            _ => unreachable!("{reg} is not an 8-bit register"),
         }
     }
 
-    fn fetch_pc(&mut self, bus: &mut CpuBus) -> u8 {
-        let byte = bus.read(self.pc);
-        self.pc += 1;
-        byte
+    fn set_reg8(&mut self, reg: Operand, val: u8) {
+        match reg {
+            Operand::A => self.a = val,
+            Operand::B => self.b = val,
+            Operand::C => self.c = val,
+            Operand::D => self.d = val,
+            Operand::E => self.e = val,
+
+            Operand::H => self.h = val,
+            Operand::L => self.l = val,
+
+            _ => unreachable!("{reg} is not an 8-bit register"),
+        }
     }
 
     fn set_flag(&mut self, flag: Flag) {
@@ -183,88 +267,114 @@ impl CPU {
         self.f & (flag as u8) != 0
     }
 
-    fn nop(&mut self, _bus: &mut CpuBus) {
+    fn nop(&mut self, _bus: &mut CpuBus) -> ExecState {
         println!("NOP");
+        ExecState::Done
     }
 
-    fn inc_a(&mut self, _bus: &mut CpuBus) {
+    fn inc_a(&mut self, _bus: &mut CpuBus) -> ExecState {
         let value = self.a;
         let result = value.wrapping_add(1);
         self.update_flag(Flag::Z, result == 0);
         self.clear_flag(Flag::N);
         self.update_flag(Flag::H, (value & 0x0F) == 0x0F);
+        self.a = value;
         println!("INC A (A = {:02X})", self.a);
+        ExecState::Done
     }
 
-    fn xor(&mut self, _bus: &mut CpuBus, operand: Operand) {
-        self.a = self.a ^ self.fetch_operand(operand);
+    fn xor(&mut self, _bus: &mut CpuBus, operand: Operand) -> ExecState {
+        match operand {
+            Operand::A => { self.z = self.a; }
+            _ => todo!(),
+        };
+
+        self.a = self.a ^ self.z;
         self.set_flag(Flag::Z);
         self.clear_flag(Flag::N);
         self.clear_flag(Flag::H);
         self.clear_flag(Flag::Z);
+
         println!("XOR A, {} (A = {:02X})", operand, self.a);
+        ExecState::Done
     }
 
-    fn jp(&mut self, bus: &mut CpuBus) {
-        let lo = self.fetch_pc(bus);
-        let hi = self.fetch_pc(bus);
-        let addr = u16::from_le_bytes([lo, hi]);
-        self.pc = addr;
-        println!("JP {:04X}", addr);
+    fn jp(&mut self, bus: &mut CpuBus) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => { self.z = self.load_pc(bus); ExecState::Partial },
+            2 => { self.w = self.load_pc(bus); ExecState::Partial },
+            3 => {
+                let addr = u16::from_le_bytes([self.z, self.w]);
+                self.pc = addr;
+                println!("JP {:04X}", addr);
+                return ExecState::Done;
+            },
+            _ => unreachable!(),
+        }
     }
 
-    fn ld_word(&mut self, bus: &mut CpuBus, dst: Operand, src: Operand) {
-        let val: u16;
-        if src == Operand::Imm16 {
-            val = u16::from_le_bytes([self.fetch_pc(bus), self.fetch_pc(bus)]);
-        } else {
-            unimplemented!("src operand {src} not implemented yet");
+    fn ld_word(&mut self, bus: &mut CpuBus, dst: Operand, src: Operand) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => {
+                if src == Operand::Imm16 {
+                    self.z = self.load_pc(bus);
+                } else {
+                    unimplemented!("src operand {src} not implemented yet");
+                }
+                ExecState::Partial
+            },
+            2 => {
+                if src == Operand::Imm16 {
+                    self.w = self.load_pc(bus);
+                } else {
+                    unimplemented!("src operand {src} not implemented yet");
+                }
+                ExecState::Partial
+            },
+            3 => {
+                let val = u16::from_le_bytes([self.z, self.w]);
+                match dst {
+                    Operand::BC => self.set_bc(val),
+                    Operand::DE => self.set_de(val),
+                    Operand::HL => self.set_hl(val),
+                    Operand::SP => self.set_sp(val),
+                    _ => panic!("Unsupported destinations"),
+                }
+                println!("LD {}, {:04X}", dst, val);
+                ExecState::Done
+            }
+            _ => unreachable!(),
         }
-
-        match dst {
-            Operand::BC => self.set_bc(val),
-            Operand::DE => self.set_de(val),
-            Operand::HL => self.set_hl(val),
-            Operand::SP => self.set_sp(val),
-            _ => panic!("Unsupported destinations"),
-        }
-
-        println!("LD {}, {:04X}", dst, val);
     }
 
-    fn ld_byte(&mut self, bus: &mut CpuBus, dst: Operand, src: Operand) {
-        let val: u8 = match src {
-            Operand::Imm8 => self.fetch_pc(bus),
-            Operand::DerefHLMinus | Operand::DerefHLPlus | Operand::DerefHL => bus.read(self.hl()),
-            Operand::A => self.a,
-            Operand::B => self.b,
-            Operand::C => self.c,
-            Operand::D => self.d,
-            Operand::E => self.e,
-            Operand::H => self.h,
-            Operand::L => self.l,
-            _ => unimplemented!("src operand {src} not implemented yet"),
-        };
+    fn ld_byte(&mut self, bus: &mut CpuBus, dst: Operand, src: Operand) -> ExecState {
+        // LD can be from reg-to-reg, mem-to-reg or reg-to-mem
+        match self.m {
+            0 => {
+                if !src.is_mem() {
+                    self.z = self.reg8(src);
+                }
 
-        match dst {
-            Operand::A => self.a = val,
-            Operand::B => self.b = val,
-            Operand::C => self.c = val,
-            Operand::D => self.d = val,
-            Operand::E => self.e = val,
-            Operand::H => self.h = val,
-            Operand::L => self.l = val,
-            Operand::DerefHLMinus | Operand::DerefHLPlus | Operand::DerefHL => bus.write(self.hl(), val),
-            _ => panic!("Unsupported destinations"),
+                if src.is_mem() || dst.is_mem() {
+                    return ExecState::Partial;
+                } else {
+                    self.set_reg8(dst, self.z);
+                }
+            },
+            1 => {
+                if src.is_mem() {
+                    self.z = self.load_mem(bus, src);
+                    self.set_reg8(dst, self.z);
+                } else {
+                    self.store_mem(bus, dst, self.z);
+                }
+            },
+            _ => unreachable!(),
         }
 
-        if dst == Operand::DerefHLPlus || src == Operand::DerefHLPlus {
-            self.set_hl(self.hl().wrapping_add(1));
-        }
-        else if dst == Operand::DerefHLMinus || src == Operand::DerefHLMinus {
-            self.set_hl(self.hl().wrapping_sub(1));
-        }
-
-        println!("LD {}, {:02X}", dst, val);
+        println!("LD {}, {:02X}", dst, self.z);
+        ExecState::Done
     }
 }
