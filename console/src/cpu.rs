@@ -152,6 +152,7 @@ impl CPU {
     fn execute_cycle(&mut self, bus: &mut impl Bus) -> ExecState {
         match self.ir {
             op::NOP => self.nop(bus),
+            op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
             op::LD_C_IMM8 => self.ld_byte(bus, Operand::C, Operand::Imm8),
             op::LD_HL_IMM16 => self.ld_word(bus, Operand::HL, Operand::Imm16),
@@ -374,6 +375,18 @@ impl CPU {
         println!("LD {}, {:02X}", dst, self.z);
         ExecState::Done
     }
+
+    fn dec_reg8(&mut self, bus: &mut impl Bus, reg: Operand) -> ExecState {
+        let new_val = self.reg8(reg).wrapping_sub(1);
+        self.set_reg8(reg, new_val);
+
+        self.update_flag(flag::Z, new_val == 0);
+        self.update_flag(flag::H, (new_val & 0x0F) == 0x0F);
+        self.set_flag(flag::N);
+
+        println!("DEC {reg} ({reg} = {new_val:02X})");
+        ExecState::Done
+    }
 }
 
 #[cfg(test)]
@@ -505,6 +518,11 @@ mod tests {
         nop:
             cycles [R(0x0100, op::NOP)]
             expect { pc: 0x101 }
+
+        dec_b:
+            given { b: 0, f: flag::Z.into() }
+            cycles[R(0x0100, op::DEC_B)]
+            expect { pc: 0x101, b: 0xFF, f: (flag::N | flag::H).into() }
 
         ld_hl_imm16:
             cycles [R(0x0100, op::LD_HL_IMM16), R(0x0101, 0x42), R(0x0102, 0x42)]
