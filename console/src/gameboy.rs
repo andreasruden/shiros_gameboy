@@ -36,7 +36,7 @@ impl GameBoy {
     }
 
     pub fn run(&mut self) -> StopReason {
-        for _i in 0..100 {
+        loop {
             let res = self.cpu.step(&mut CpuBus {
                 cartridge: &mut self.cartridge,
                 wram: &mut self.wram
@@ -44,12 +44,12 @@ impl GameBoy {
 
             match res {
                 StopReason::Step => return StopReason::Step,
+                StopReason::Breakpoint(bp) => return StopReason::Breakpoint(bp),
                 StopReason::Cycle(_) => { /* todo */ },
+                StopReason::Halt => return StopReason::Halt,
                 _ => unreachable!(),
             }
         }
-
-        StopReason::Halt
     }
 
     pub fn set_debugged(&mut self, state: bool) {
