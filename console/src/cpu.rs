@@ -155,6 +155,7 @@ impl CPU {
             op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
             op::LD_C_IMM8 => self.ld_byte(bus, Operand::C, Operand::Imm8),
+            op::JR_NZ_IMM8 => self.jr(bus, |s| !s.is_set(flag::Z)),
             op::LD_HL_IMM16 => self.ld_word(bus, Operand::HL, Operand::Imm16),
             op::LDI_HL_A => self.ld_byte(bus, Operand::DerefHLPlus, Operand::A),
             op::LDI_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLPlus),
@@ -310,6 +311,25 @@ impl CPU {
                 println!("JP {:04X}", addr);
                 return ExecState::Done;
             },
+            _ => unreachable!(),
+        }
+    }
+
+    fn jr<F>(&mut self, bus: &mut impl Bus, cond: F) -> ExecState
+    where
+        F: Fn(&Self) -> bool,
+    {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => {
+                self.z = self.load_pc(bus);
+                println!("{}", cond(self));
+                if cond(self) { ExecState::Partial } else { ExecState::Done }
+            },
+            2 => {
+                self.pc = self.pc.wrapping_add_signed((self.z as i8) as i16);
+                ExecState::Done
+            }
             _ => unreachable!(),
         }
     }
@@ -521,8 +541,17 @@ mod tests {
 
         dec_b:
             given { b: 0, f: flag::Z.into() }
-            cycles[R(0x0100, op::DEC_B)]
+            cycles [R(0x0100, op::DEC_B)]
             expect { pc: 0x101, b: 0xFF, f: (flag::N | flag::H).into() }
+
+        jr_nz_imm8_skip:
+            given { f: flag::Z.into() }
+            cycles [R(0x0100, op::JR_NZ_IMM8), R(0x0101, 0xD6)]
+            expect { pc: 0x0102 }
+
+        jr_nz_imm8_jump:
+            cycles [R(0x0100, op::JR_NZ_IMM8), R(0x0101, 0xD6), Idle]
+            expect { pc: 0x00D8 }
 
         ld_hl_imm16:
             cycles [R(0x0100, op::LD_HL_IMM16), R(0x0101, 0x42), R(0x0102, 0x42)]
