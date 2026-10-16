@@ -12,6 +12,7 @@ pub struct CPU {
     m: u8,   // counts m cycle into current instruction (0..=4)
     ir: u8,  // instruction register
     z: u8, w: u8,  // internal registers
+    ime: u8,  // interrupt master enable flag (0xFF = intermediate state)
     debug: bool,
     break_counter: i32, // debug break in this many instructions or -1
     breakpoints: HashSet<u16>,
@@ -42,6 +43,7 @@ impl CPU {
             m: 0,
             ir: 0,
             z: 0, w: 0,
+            ime: 0,
             debug: false,
             break_counter: -1,
             breakpoints: HashSet::new(),
@@ -148,6 +150,11 @@ impl CPU {
                 return reason;
             }
 
+            // Implementation of delay in EI instruction
+            if self.ime == 0xFF {
+                self.ime = 1;
+            }
+
             self.ir = self.load_pc(bus);
         }
 
@@ -179,6 +186,8 @@ impl CPU {
             op::LD_A_IMM8 => self.ld_byte(bus, Operand::A, Operand::Imm8),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
+            op::DI => self.di(bus),
+            op::EI => self.ei(bus),
             _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc - 1),
         }
     }
@@ -408,7 +417,7 @@ impl CPU {
         ExecState::Done
     }
 
-    fn dec_reg8(&mut self, bus: &mut impl Bus, reg: Operand) -> ExecState {
+    fn dec_reg8(&mut self, _bus: &mut impl Bus, reg: Operand) -> ExecState {
         let new_val = self.reg8(reg).wrapping_sub(1);
         self.set_reg8(reg, new_val);
 
@@ -416,6 +425,16 @@ impl CPU {
         self.update_flag(flag::H, (new_val & 0x0F) == 0x0F);
         self.set_flag(flag::N);
 
+        ExecState::Done
+    }
+
+    fn di(&mut self, _bus: &mut impl Bus) -> ExecState {
+        self.ime = 0;
+        ExecState::Done
+    }
+
+    fn ei(&mut self, _bus: &mut impl Bus) -> ExecState {
+        self.ime = 0xFF;
         ExecState::Done
     }
 }
@@ -478,17 +497,19 @@ mod tests {
             "hl" => cpu.set_hl(val),
             "sp" => cpu.sp = val,
             "pc" => cpu.pc = val,
+            "ime" => cpu.ime = val as u8,
             _ => panic!("unknown register {reg}"),
         }
     }
 
-    fn regs(cpu: &CPU) -> [(&'static str, u16); 10] {
+    fn regs(cpu: &CPU) -> [(&'static str, u16); 11] {
         [
             ("a", cpu.a as u16), ("f", cpu.f as u16),
             ("b", cpu.b as u16), ("c", cpu.c as u16),
             ("d", cpu.d as u16), ("e", cpu.e as u16),
             ("h", cpu.h as u16), ("l", cpu.l as u16),
             ("sp", cpu.sp), ("pc", cpu.pc),
+            ("ime", cpu.ime as u16),
         ]
     }
 
@@ -515,7 +536,7 @@ mod tests {
                 bus.pos += 1;
             }
             assert_eq!(bus.pos, cycle, "cycle {cycle} did not match expectation");
-            if cpu.m == 0 {
+            if cpu.m == 0 && bus.pos == bus.cycles.len() {
                 break;
             }
         }
@@ -605,6 +626,21 @@ mod tests {
         jp:
             cycles [R(0x100, op::JP), R(0x101, 0xCC), R(0x102, 0xDD), Idle]
             expect { pc: 0xDDCC }
+
+        di:
+            given { ime: true as u16 }
+            cycles [R(0x100, op::DI)]
+            expect { pc: 0x101, ime: 0 }
+
+        ei_1:
+            given { ime: false as u16 }
+            cycles[R(0x100, op::EI)]
+            expect { pc: 0x101, ime: 0xFF }  // intermediate value, still means false
+
+        ei_2:
+            given { ime: false as u16 }
+            cycles[R(0x100, op::EI), R(0x101, op::NOP)]  // dummy instruction to observe change
+            expect { pc: 0x102, ime: 0x1 }
     }
 
     macro_rules! ld_r_imm8 {
