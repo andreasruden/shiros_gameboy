@@ -16,6 +16,11 @@ pub fn disassemble_next(code: &[u8], mut pc: u16) -> (String, u16) {
 
     let mut disassemble = String::from(op_info.mnemonic);
 
+    // TODO: temporary
+    if op_info.opcode == UNKNOWN_OPCODE.opcode {
+        write!(disassemble, " (op=${op:02X})").unwrap();
+    }
+
     let mut first = true;
     for operand in op_info.operands {
         if !first {

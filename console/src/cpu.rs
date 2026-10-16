@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{bus::Bus, gameboy::StopReason, opcodes::{Operand, op}};
 
 pub struct CPU {
@@ -12,6 +14,7 @@ pub struct CPU {
     z: u8, w: u8,  // internal registers
     debug: bool,
     break_counter: i32, // debug break in this many instructions or -1
+    breakpoints: HashSet<u16>,
 }
 
 mod flag {
@@ -41,6 +44,7 @@ impl CPU {
             z: 0, w: 0,
             debug: false,
             break_counter: -1,
+            breakpoints: HashSet::new(),
         }
     }
 
@@ -110,6 +114,15 @@ impl CPU {
         self.break_counter = instructions;
     }
 
+    pub fn debug_set_breakpoint(&mut self, addr: u16) {
+        assert!(self.debug, "must be in debug mode");
+        self.breakpoints.insert(addr);
+    }
+
+    pub fn debug_delete_breakpoint(&mut self, addr: u16) {
+        self.breakpoints.remove(&addr);
+    }
+
     pub fn prepare_boot_loader(&mut self) {
         println!("TODO: Bootloader skipped for now");
 
@@ -129,12 +142,12 @@ impl CPU {
     // Returns a reason for "stopping", if the reason is cycle that indluces how many
     // T-cycles the emulation advanced in this step
     pub fn step(&mut self, bus: &mut impl Bus) -> StopReason {
-        if let Some(reason) = self.should_break() {
-            return reason;
-        }
-
         // M0: Instruction Fetch
         if self.m == 0 {
+            if let Some(reason) = self.should_break() {
+                return reason;
+            }
+
             self.ir = self.load_pc(bus);
         }
 
@@ -166,12 +179,16 @@ impl CPU {
             op::LD_A_IMM8 => self.ld_byte(bus, Operand::A, Operand::Imm8),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
-            _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc),
+            _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc - 1),
         }
     }
 
     fn should_break(&mut self) -> Option<StopReason> {
-        if self.debug && self.m == 0 {
+        if self.debug {
+            if self.breakpoints.contains(&self.pc) {
+                return Some(StopReason::Breakpoint(self.pc));
+            }
+
             if self.break_counter == 0 {
                 self.break_counter = -1;
                 return Some(StopReason::Step);

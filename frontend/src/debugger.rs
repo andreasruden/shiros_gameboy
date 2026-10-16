@@ -23,7 +23,7 @@ impl Debugger {
         self.gameboy.power_on();
         loop {
             match self.gameboy.run() {
-                StopReason::Breakpoint(bp) => self.on_pause(Some(bp)),
+                StopReason::Breakpoint(addr) => self.on_pause(Some(addr)),
                 StopReason::Step => self.on_pause(None),
                 StopReason::Halt => break,
                 _ => panic!("Unhandled StopReason"),
@@ -31,10 +31,10 @@ impl Debugger {
         }
     }
 
-    fn on_pause(&mut self, breakpoint: Option<u32>) {
+    fn on_pause(&mut self, breakpoint: Option<u16>) {
         let pc = self.gameboy.cpu.pc();
-        if let Some(bp) = breakpoint {
-            println!("Break at {} at {:04X}", bp, pc);
+        if let Some(addr) = breakpoint {
+            println!("Break at {:04X}", addr);
         }
         if let Some(cart) = &self.gameboy.cartridge {
             let (text, _) = disassemble_next(&cart.rom, pc);
@@ -66,6 +66,14 @@ impl Debugger {
                     Ok(n) => return Action::Step(n),
                     Err(e) => println!("Error: {e}"),
                 },
+                (Some("b" | "break"), arg) => match parse_addr(arg) {
+                    Ok(addr) => self.gameboy.cpu.debug_set_breakpoint(addr),
+                    Err(e) => println!("Error: {e}"),
+                },
+                (Some("d" | "delete"), arg) => match parse_addr(arg) {
+                    Ok(addr) => self.gameboy.cpu.debug_delete_breakpoint(addr),
+                    Err(e) => println!("Error: {e}"),
+                },
                 (Some("h" | "help"), _) => println!("Available commands: (c)ontinue, (s)tep"),
                 (Some(cmd), _) => println!("Undefined command: {cmd}. Try \"help\"."),
                 (None, _) => {},
@@ -78,5 +86,19 @@ fn parse_count(arg: Option<&str>) -> Result<i32, String> {
     match arg {
         None => Ok(1),
         Some(s) => s.parse::<i32>().map_err(|e| format!("count parsed yielded {e}")),
+    }
+}
+
+fn parse_addr(arg: Option<&str>) -> Result<u16, String> {
+    match arg {
+        None => Err(String::from("Must specify an address")),
+        Some(s) => parse_u16(s).map_err(|e| format!("parse addr yielded {e}")),
+    }
+}
+
+fn parse_u16(s: &str) -> Result<u16, std::num::ParseIntError> {
+    match s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).or_else(|| s.strip_prefix('$')) {
+        Some(hex) => u16::from_str_radix(hex, 16),
+        None => s.parse::<u16>(),
     }
 }

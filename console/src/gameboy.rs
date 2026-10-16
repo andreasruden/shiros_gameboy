@@ -12,7 +12,7 @@ pub struct GameBoy {
 
 #[derive(PartialEq, Eq)]
 pub enum StopReason {
-    Breakpoint(u32),
+    Breakpoint(u16),
     Step,
     Cycle(u8),
     Halt,
@@ -44,7 +44,7 @@ impl GameBoy {
 
             match res {
                 StopReason::Step => return StopReason::Step,
-                StopReason::Breakpoint(bp) => return StopReason::Breakpoint(bp),
+                StopReason::Breakpoint(addr) => return StopReason::Breakpoint(addr),
                 StopReason::Cycle(_) => { /* todo */ },
                 StopReason::Halt => return StopReason::Halt,
                 _ => unreachable!(),
