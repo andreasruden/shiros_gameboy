@@ -1,4 +1,4 @@
-use crate::opcodes::{OPCODES, OpInfo};
+use crate::opcodes::{OPCODES, OpInfo, Operand};
 use std::fmt::Write;
 
 static UNKNOWN_OPCODE: OpInfo = OpInfo {
@@ -23,7 +23,14 @@ pub fn disassemble_next(code: &[u8], mut pc: u16) -> (String, u16) {
         } else {
             first = false;
         }
-        write!(disassemble, " {}", operand).unwrap();
+        match operand {
+            Operand::Imm8 => write!(disassemble, " ${:02X}", code[pc as usize]).unwrap(),
+            Operand::Imm16 => {
+                let immediate = u16::from_le_bytes([code[pc as usize], code[(pc + 1) as usize]]);
+                write!(disassemble, " ${:04X}", immediate).unwrap();
+            },
+            _ => write!(disassemble, " {}", operand).unwrap(),
+        };
 
         pc += operand.size();
     }
@@ -45,11 +52,12 @@ fn lookup_opcode(op: u8) -> &'static OpInfo {
 
 #[cfg(test)]
 mod tests {
+    use crate::opcodes::op;
     use super::*;
 
     #[test]
     fn simple_instruction() {
-        let code = [0 as u8];
+        let code = [op::NOP as u8];
         let pc: u16 = 0;
         let (s, new_pc) = disassemble_next(&code, pc);
         assert_eq!(new_pc, 1);
@@ -58,10 +66,28 @@ mod tests {
 
     #[test]
     fn instruction_with_hardcoded_operands() {
-        let code = [0xAF as u8];
+        let code = [op::XOR_AA as u8];
         let pc: u16 = 0;
         let (s, new_pc) = disassemble_next(&code, pc);
         assert_eq!(new_pc, 1);
         assert_eq!(s, "XOR A, A");
+    }
+
+    #[test]
+    fn instruction_with_imm8_value() {
+        let code = [op::JR_NZ_IMM8 as u8, 0x10 as u8];
+        let pc: u16 = 0;
+        let (s, new_pc) = disassemble_next(&code, pc);
+        assert_eq!(new_pc, 2);
+        assert_eq!(s, "JR NZ, $10");
+    }
+
+    #[test]
+    fn instruction_with_imm16_value() {
+        let code = [op::LD_HL_IMM16 as u8, 0xBB as u8, 0xAA as u8];
+        let pc: u16 = 0;
+        let (s, new_pc) = disassemble_next(&code, pc);
+        assert_eq!(new_pc, 3);
+        assert_eq!(s, "LD HL, $AABB");
     }
 }

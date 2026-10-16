@@ -269,7 +269,6 @@ impl CPU {
     }
 
     fn nop(&mut self, _bus: &mut impl Bus) -> ExecState {
-        println!("NOP");
         ExecState::Done
     }
 
@@ -280,7 +279,6 @@ impl CPU {
         self.clear_flag(flag::N);
         self.update_flag(flag::H, (value & 0x0F) == 0x0F);
         self.a = result;
-        println!("INC A (A = {:02X})", self.a);
         ExecState::Done
     }
 
@@ -296,7 +294,6 @@ impl CPU {
         self.clear_flag(flag::H);
         self.clear_flag(flag::C);
 
-        println!("XOR A, {} (A = {:02X})", operand, self.a);
         ExecState::Done
     }
 
@@ -308,7 +305,6 @@ impl CPU {
             3 => {
                 let addr = u16::from_le_bytes([self.z, self.w]);
                 self.pc = addr;
-                println!("JP {:04X}", addr);
                 return ExecState::Done;
             },
             _ => unreachable!(),
@@ -323,7 +319,6 @@ impl CPU {
             0 => ExecState::Partial,
             1 => {
                 self.z = self.load_pc(bus);
-                println!("{}", cond(self));
                 if cond(self) { ExecState::Partial } else { ExecState::Done }
             },
             2 => {
@@ -360,7 +355,6 @@ impl CPU {
                     Operand::SP => self.set_sp(val),
                     _ => panic!("Unsupported destinations"),
                 }
-                println!("LD {}, {:04X}", dst, val);
                 ExecState::Done
             },
             _ => unreachable!(),
@@ -392,7 +386,6 @@ impl CPU {
             _ => unreachable!(),
         }
 
-        println!("LD {}, {:02X}", dst, self.z);
         ExecState::Done
     }
 
@@ -404,7 +397,6 @@ impl CPU {
         self.update_flag(flag::H, (new_val & 0x0F) == 0x0F);
         self.set_flag(flag::N);
 
-        println!("DEC {reg} ({reg} = {new_val:02X})");
         ExecState::Done
     }
 }

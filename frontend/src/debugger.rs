@@ -1,5 +1,5 @@
 use std::{io::{self, Write}};
-use console::{GameBoy, gameboy::StopReason};
+use console::{GameBoy, disassembler::disassemble_next, gameboy::StopReason};
 
 pub struct Debugger {
     gameboy: GameBoy,
@@ -32,10 +32,14 @@ impl Debugger {
     }
 
     fn on_pause(&mut self, breakpoint: Option<u32>) {
+        let pc = self.gameboy.cpu.pc();
         if let Some(bp) = breakpoint {
-            println!("Break at {} at {:04X}", bp, self.gameboy.cpu.pc());
+            println!("Break at {} at {:04X}", bp, pc);
         }
-        // TODO: print instruction disassembly
+        if let Some(cart) = &self.gameboy.cartridge {
+            let (text, _) = disassemble_next(&cart.rom, pc);
+            println!("=> ${pc:04X}: {text}");
+        }
 
         match self.read_eval_loop() {
             Action::Continue => (),

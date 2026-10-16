@@ -36,7 +36,7 @@ opcodes! {
     DEC_B       = 0x05, "DEC", B;
     LD_B_IMM8   = 0x06, "LD", B, Imm8;
     LD_C_IMM8   = 0x0E, "LD", C, Imm8;
-    JR_NZ_IMM8  = 0x20, "JR NZ, ", Imm8;
+    JR_NZ_IMM8  = 0x20, "JR NZ,", Imm8;
     LD_HL_IMM16 = 0x21, "LD", HL, Imm16;
     LDI_HL_A    = 0x22, "LD", DerefHLPlus, A;
     LDI_A_HL    = 0x2A, "LD", A, DerefHLPlus;
