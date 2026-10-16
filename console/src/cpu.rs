@@ -154,6 +154,7 @@ impl CPU {
             op::NOP => self.nop(bus),
             op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
+            op::DEC_C => self.dec_reg8(bus, Operand::C),
             op::LD_C_IMM8 => self.ld_byte(bus, Operand::C, Operand::Imm8),
             op::JR_NZ_IMM8 => self.jr(bus, |s| !s.is_set(flag::Z)),
             op::LD_HL_IMM16 => self.ld_word(bus, Operand::HL, Operand::Imm16),
@@ -162,6 +163,7 @@ impl CPU {
             op::LDD_HL_A => self.ld_byte(bus, Operand::DerefHLMinus, Operand::A),
             op::LDD_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLMinus),
             op::INC_A => self.inc_a(bus),
+            op::LD_A_IMM8 => self.ld_byte(bus, Operand::A, Operand::Imm8),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
             _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc),
@@ -573,6 +575,10 @@ mod tests {
             given { a: 0x3F, f: (flag::Z | flag::N).into() }
             cycles [R(0x100, op::INC_A)]
             expect { pc: 0x101, a: 0x40, f: flag::H.into() }
+
+        ld_a_imm8:
+            cycles [R(0x100, op::LD_A_IMM8), R(0x101, 42)]
+            expect { pc: 0x102, a: 42 }
 
         xor_aa:
             given { a: 42 }

@@ -35,6 +35,7 @@ opcodes! {
     NOP         = 0x00, "NOP";
     DEC_B       = 0x05, "DEC", B;
     LD_B_IMM8   = 0x06, "LD", B, Imm8;
+    DEC_C       = 0x0D, "DEC", C;
     LD_C_IMM8   = 0x0E, "LD", C, Imm8;
     JR_NZ_IMM8  = 0x20, "JR NZ,", Imm8;
     LD_HL_IMM16 = 0x21, "LD", HL, Imm16;
@@ -43,6 +44,7 @@ opcodes! {
     LDD_HL_A    = 0x32, "LD", DerefHLMinus, A;
     LDD_A_HL    = 0x3A, "LD", A, DerefHLMinus;
     INC_A       = 0x3C, "INC", A;
+    LD_A_IMM8   = 0x3E, "LD", A, Imm8;
     XOR_AA      = 0xAF, "XOR", A, A;
     JP          = 0xC3, "JP", Imm16;
 }
