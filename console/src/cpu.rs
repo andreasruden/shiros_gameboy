@@ -186,6 +186,7 @@ impl CPU {
             op::LD_A_IMM8 => self.ld_byte(bus, Operand::A, Operand::Imm8),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
+            op::LDH_IMM8_A => self.ldh(bus, Operand::Imm8, Operand::A),
             op::DI => self.di(bus),
             op::EI => self.ei(bus),
             _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc - 1),
@@ -417,6 +418,22 @@ impl CPU {
         ExecState::Done
     }
 
+    fn ldh(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
+        // TODO: This is only implemented for 0xE0
+        match self.m {
+            0 => ExecState::Partial,
+            1 => {
+                self.z = self.load_mem(bus, dst);
+                ExecState::Partial
+            },
+            2 => {
+                bus.write(0xFF00 + self.z as u16, self.reg8(src));
+                ExecState::Done
+            }
+            _ => unreachable!(),
+        }
+    }
+
     fn dec_reg8(&mut self, _bus: &mut impl Bus, reg: Operand) -> ExecState {
         let new_val = self.reg8(reg).wrapping_sub(1);
         self.set_reg8(reg, new_val);
@@ -626,6 +643,11 @@ mod tests {
         jp:
             cycles [R(0x100, op::JP), R(0x101, 0xCC), R(0x102, 0xDD), Idle]
             expect { pc: 0xDDCC }
+
+        ldh_imm8_a:
+            given { a: 42 }
+            cycles[R(0x100, op::LDH_IMM8_A), R(0x101, 0xF1), W(0xFFF1, 42)]
+            expect { pc: 0x102 }
 
         di:
             given { ime: true as u16 }

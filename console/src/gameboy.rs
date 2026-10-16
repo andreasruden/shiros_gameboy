@@ -1,6 +1,6 @@
 // The main struct for the GameBoy, owns the components
 
-use crate::bus::CpuBus;
+use crate::bus::{CpuBus, IoRegisters};
 use crate::cpu::CPU;
 use crate::cartridge::Cartridge;
 
@@ -8,6 +8,9 @@ pub struct GameBoy {
     pub cpu: CPU,
     pub cartridge: Option<Cartridge>,
     pub wram: [u8; 0x2000],
+    pub io_reg: IoRegisters,
+    pub ie_reg: u8,
+    pub hram: [u8; 127],
 }
 
 #[derive(PartialEq, Eq)]
@@ -24,6 +27,9 @@ impl GameBoy {
             cpu: CPU::new(),
             cartridge: None,
             wram: [0; 0x2000],
+            io_reg: IoRegisters::new(),
+            ie_reg: 0,
+            hram: [0; 127],
         }
     }
 
@@ -39,7 +45,10 @@ impl GameBoy {
         loop {
             let res = self.cpu.step(&mut CpuBus {
                 cartridge: &mut self.cartridge,
-                wram: &mut self.wram
+                wram: &mut self.wram,
+                io_reg: &mut self.io_reg,
+                ie_reg: &mut self.ie_reg,
+                hram: &mut self.hram,
             });
 
             match res {

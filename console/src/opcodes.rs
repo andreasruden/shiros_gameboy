@@ -47,6 +47,7 @@ opcodes! {
     LD_A_IMM8   = 0x3E, "LD", A, Imm8;
     XOR_AA      = 0xAF, "XOR", A, A;
     JP          = 0xC3, "JP", Imm16;
+    LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
     DI          = 0xF3, "DI";
     EI          = 0xFB, "EI";
 }
