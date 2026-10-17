@@ -192,6 +192,7 @@ impl CPU {
             op::JP => self.jp(bus),
             op::LDH_IMM8_A => self.ldh(bus, Operand::Imm8, Operand::A),
             op::LD_ADDR_A => self.ld_deref_imm16(bus, true),
+            op::LDH_A_IMM8 => self.ldh(bus, Operand::A, Operand::Imm8),
             op::DI => self.di(bus),
             op::LD_A_ADDR => self.ld_deref_imm16(bus, false),
             op::EI => self.ei(bus),
@@ -452,15 +453,23 @@ impl CPU {
     }
 
     fn ldh(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
-        // TODO: This is only implemented for 0xE0
+        // TODO: This is only implemented for 0xE0 and 0xF0
         match self.m {
             0 => ExecState::Partial,
             1 => {
-                self.z = self.load_mem(bus, dst);
+                if src.is_mem() {
+                    self.z = self.load_mem(bus, src)
+                } else {
+                    self.z = self.load_mem(bus, dst);
+                }
                 ExecState::Partial
             },
             2 => {
-                bus.write(0xFF00 + self.z as u16, self.reg8(src));
+                if src.is_mem() {
+                    self.set_reg8(dst, bus.read(0xFF00 + self.z as u16));
+                } else {
+                    bus.write(0xFF00 + self.z as u16, self.reg8(src));
+                }
                 ExecState::Done
             }
             _ => unreachable!(),
@@ -686,6 +695,10 @@ mod tests {
             given { a: 42 }
             cycles[R(0x100, op::LD_ADDR_A), R(0x101, 0xAF), R(0x102, 0xC0), W(0xC0AF, 42)]
             expect{ pc: 0x103 }
+
+        ldh_a_imm8:
+            cycles[R(0x100, op::LDH_A_IMM8), R(0x101, 0xCC), R(0xFFCC, 42)]
+            expect { pc: 0x102, a: 42 }
 
         di:
             given { ime: true as u16 }

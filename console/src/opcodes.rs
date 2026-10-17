@@ -49,6 +49,7 @@ opcodes! {
     JP          = 0xC3, "JP", Imm16;
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
     LD_ADDR_A   = 0xEA, "LD", Addr, A;
+    LDH_A_IMM8  = 0xF0, "LD", A, Imm8;
     DI          = 0xF3, "DI";
     LD_A_ADDR   = 0xFA, "LD", A, Addr;
     EI          = 0xFB, "EI";
