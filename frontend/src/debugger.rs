@@ -74,11 +74,18 @@ impl Debugger {
                     Ok(addr) => self.gameboy.cpu.debug_delete_breakpoint(addr),
                     Err(e) => println!("Error: {e}"),
                 },
+                (Some("r" | "registers"), _) => self.print_cpu_registers(),
                 (Some("h" | "help"), _) => println!("Available commands: (c)ontinue, (s)tep"),
                 (Some(cmd), _) => println!("Undefined command: {cmd}. Try \"help\"."),
                 (None, _) => {},
             }
         }
+    }
+
+    fn print_cpu_registers(&mut self) {
+        let cpu = &self.gameboy.cpu;
+        println!("AF={:04X}  BC={:04X}  DE={:04X}  HL={:04X}", cpu.af(), cpu.bc(), cpu.de(), cpu.hl());
+        println!("SP={:04X}  PC={:04X}  F={}", cpu.sp(), cpu.pc(), flags_string(cpu.f()));
     }
 }
 
@@ -101,4 +108,10 @@ fn parse_u16(s: &str) -> Result<u16, std::num::ParseIntError> {
         Some(hex) => u16::from_str_radix(hex, 16),
         None => s.parse::<u16>(),
     }
+}
+
+fn flags_string(flags: u8) -> String {
+    [(0x80, "Z"), (0x40, "N"), (0x20, "H"), (0x10, "C")].iter().map(
+        |(bit, flag)| if (flags & bit) != 0 { flag } else { " " }
+    ).collect()
 }

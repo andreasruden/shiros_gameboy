@@ -54,6 +54,10 @@ impl CPU {
         u16::from_be_bytes([self.a, self.f])
     }
 
+    pub fn f(&self) -> u8 {
+        self.f
+    }
+
     pub fn set_af(&mut self, af: u16) {
         let [a, f] = af.to_be_bytes();
         self.a = a;
