@@ -6,7 +6,7 @@ pub enum Operand {
     AF, A, BC, B, C, DE, D, E, HL, H, L, DerefHL, DerefHLPlus, DerefHLMinus, SP,
 
     // Immediates
-    Imm8, Imm16
+    Imm8, Imm16, Addr
 }
 
 macro_rules! opcodes {
@@ -48,7 +48,9 @@ opcodes! {
     XOR_AA      = 0xAF, "XOR", A, A;
     JP          = 0xC3, "JP", Imm16;
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
+    LD_ADDR_A   = 0xEA, "LD", Addr, A;
     DI          = 0xF3, "DI";
+    LD_A_ADDR   = 0xFA, "LD", A, Addr;
     EI          = 0xFB, "EI";
 }
 
@@ -57,13 +59,14 @@ impl Operand {
         match self {
             Operand::Imm8 => 1,
             Operand::Imm16 => 2,
+            Operand::Addr => 2,
             _ => 0,
         }
     }
 
     pub fn is_mem(self) -> bool {
         matches!(self, Operand::Imm8 | Operand::Imm16 | Operand::DerefHL | Operand::DerefHLPlus |
-            Operand::DerefHLMinus)
+            Operand::DerefHLMinus | Operand::Addr)
     }
 }
 
@@ -87,6 +90,7 @@ impl fmt::Display for Operand {
             Operand::SP => "SP",
             Operand::Imm8 => "imm8",
             Operand::Imm16 => "imm16",
+            Operand::Addr => "[a16]",
         };
         write!(f, "{s}")
     }

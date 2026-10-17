@@ -191,7 +191,9 @@ impl CPU {
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
             op::LDH_IMM8_A => self.ldh(bus, Operand::Imm8, Operand::A),
+            op::LD_ADDR_A => self.ld_deref_imm16(bus, true),
             op::DI => self.di(bus),
+            op::LD_A_ADDR => self.ld_deref_imm16(bus, false),
             op::EI => self.ei(bus),
             _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc - 1),
         }
@@ -394,8 +396,8 @@ impl CPU {
         }
     }
 
+    // LD handles by this function can be from reg-to-reg, mem-to-reg or reg-to-mem
     fn ld_byte(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
-        // LD can be from reg-to-reg, mem-to-reg or reg-to-mem
         match self.m {
             0 => {
                 if !src.is_mem() {
@@ -420,6 +422,33 @@ impl CPU {
         }
 
         ExecState::Done
+    }
+
+    // This function only implements:
+    // $EA: LD [a16], A
+    // $FA: LD A, [a16]
+    fn ld_deref_imm16(&mut self, bus: &mut impl Bus, is_ea: bool) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => {
+                self.z = self.load_mem(bus, Operand::Imm8);
+                ExecState::Partial
+            },
+            2 => {
+                self.w = self.load_mem(bus, Operand::Imm8);
+                ExecState::Partial
+            },
+            3 => {
+                let addr = u16::from_le_bytes([self.z, self.w]);
+                if is_ea {
+                    bus.write(addr, self.a);
+                } else {
+                    self.a = bus.read(addr);
+                }
+                ExecState::Done
+            },
+            _ => unreachable!(),
+        }
     }
 
     fn ldh(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
@@ -653,10 +682,19 @@ mod tests {
             cycles[R(0x100, op::LDH_IMM8_A), R(0x101, 0xF1), W(0xFFF1, 42)]
             expect { pc: 0x102 }
 
+        ld_addr_a:
+            given { a: 42 }
+            cycles[R(0x100, op::LD_ADDR_A), R(0x101, 0xAF), R(0x102, 0xC0), W(0xC0AF, 42)]
+            expect{ pc: 0x103 }
+
         di:
             given { ime: true as u16 }
             cycles [R(0x100, op::DI)]
             expect { pc: 0x101, ime: 0 }
+
+        ld_a_addr:
+            cycles[R(0x100, op::LD_A_ADDR), R(0x101, 0xAF), R(0x102, 0xC0), R(0xC0AF, 42)]
+            expect{ pc: 0x103, a: 42 }
 
         ei_1:
             given { ime: false as u16 }
