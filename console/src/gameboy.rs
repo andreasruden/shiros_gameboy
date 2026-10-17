@@ -19,6 +19,7 @@ pub enum StopReason {
     Step,
     Cycle(u8),
     Halt,
+    StopRequested,
 }
 
 impl GameBoy {
@@ -56,7 +57,7 @@ impl GameBoy {
                 StopReason::Breakpoint(addr) => return StopReason::Breakpoint(addr),
                 StopReason::Cycle(_) => { /* todo */ },
                 StopReason::Halt => return StopReason::Halt,
-                _ => unreachable!(),
+                StopReason::StopRequested => return StopReason::StopRequested,
             }
         }
     }

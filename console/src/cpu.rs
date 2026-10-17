@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::atomic::{AtomicBool, Ordering}};
 
 use crate::{bus::Bus, gameboy::StopReason, opcodes::{Operand, op}};
 
@@ -16,6 +16,7 @@ pub struct CPU {
     debug: bool,
     break_counter: i32, // debug break in this many instructions or -1
     breakpoints: HashSet<u16>,
+    stop_request: Option<&'static AtomicBool>,
 }
 
 mod flag {
@@ -47,6 +48,7 @@ impl CPU {
             debug: false,
             break_counter: -1,
             breakpoints: HashSet::new(),
+            stop_request: None,
         }
     }
 
@@ -112,6 +114,10 @@ impl CPU {
 
     pub fn set_debugged(&mut self, state: bool) {
         self.debug = state;
+    }
+
+    pub fn debug_set_stop_request_handle(&mut self, flag: &'static AtomicBool) {
+        self.stop_request = Some(flag);
     }
 
     pub fn debug_stepi(&mut self, instructions: i32) {
@@ -203,6 +209,10 @@ impl CPU {
 
     fn should_break(&mut self) -> Option<StopReason> {
         if self.debug {
+            if let Some(flag) = self.stop_request && flag.swap(false, Ordering::Relaxed) {
+                return Some(StopReason::StopRequested);
+            }
+
             if self.breakpoints.contains(&self.pc) {
                 return Some(StopReason::Breakpoint(self.pc));
             }

@@ -1,5 +1,12 @@
-use std::{io::{self, Write}};
+use std::io::{self, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use console::{GameBoy, disassembler::disassemble_next, gameboy::StopReason};
+
+static STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+extern "C" fn on_sigint(_: libc::c_int) {
+    STOP_REQUESTED.store(true, Ordering::Relaxed);
+}
 
 pub struct Debugger {
     gameboy: GameBoy,
@@ -20,11 +27,17 @@ impl Debugger {
 
     pub fn start(&mut self) {
         self.gameboy.set_debugged(true);
+        self.gameboy.cpu.debug_set_stop_request_handle(&STOP_REQUESTED);
+        unsafe { libc::signal(libc::SIGINT, on_sigint as *const () as libc::sighandler_t) };
         self.gameboy.power_on();
         loop {
             match self.gameboy.run() {
                 StopReason::Breakpoint(addr) => self.on_pause(Some(addr)),
                 StopReason::Step => self.on_pause(None),
+                StopReason::StopRequested => {
+                    println!();
+                    self.on_pause(None);
+                }
                 StopReason::Halt => break,
                 _ => panic!("Unhandled StopReason"),
             }
