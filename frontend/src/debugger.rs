@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::mem::uninitialized;
 use std::sync::atomic::{AtomicBool, Ordering};
 use console::{GameBoy, disassembler::disassemble_next, gameboy::StopReason};
 
@@ -73,24 +74,47 @@ impl Debugger {
 
             let cmd = line.trim();
             let mut cmd_parts = cmd.split_whitespace();
-            match (cmd_parts.next(), cmd_parts.next()) {
-                (Some("c" | "continue"), _) => return Action::Continue,
-                (Some("s" | "step"), arg) => match parse_count(arg) {
+            match (cmd_parts.next(), cmd_parts.next(), cmd_parts.next()) {
+                (Some("c" | "continue"), _, _) => return Action::Continue,
+                (Some("s" | "step"), arg, _) => match parse_count(arg) {
                     Ok(n) => return Action::Step(n),
                     Err(e) => println!("Error: {e}"),
                 },
-                (Some("b" | "break"), arg) => match parse_addr(arg) {
+                (Some("b" | "break"), arg, _) => match parse_addr(arg) {
                     Ok(addr) => self.gameboy.cpu.debug_set_breakpoint(addr),
                     Err(e) => println!("Error: {e}"),
                 },
-                (Some("d" | "delete"), arg) => match parse_addr(arg) {
+                (Some("d" | "delete"), arg, _) => match parse_addr(arg) {
                     Ok(addr) => self.gameboy.cpu.debug_delete_breakpoint(addr),
                     Err(e) => println!("Error: {e}"),
                 },
-                (Some("r" | "registers"), _) => self.print_cpu_registers(),
-                (Some("h" | "help"), _) => println!("Available commands: (c)ontinue, (s)tep"),
-                (Some(cmd), _) => println!("Undefined command: {cmd}. Try \"help\"."),
-                (None, _) => {},
+                (Some("r" | "registers"), _, _) => self.print_cpu_registers(),
+                (Some("m" | "memory"), addr, _) => match parse_addr(addr) {
+                    Ok(addr) => println!("{}", self.read_memory(addr)),
+                    Err(e) => println!("Error: {e}"),
+                },
+                (Some("w" | "write"), arg1, arg2) => match (arg1, arg2) {
+                    (Some(arg1), Some(arg2)) => self.write_cmd(arg1, arg2),
+                    _ => println!("Error: command is \"write location value\""),
+                },
+                (Some("h" | "help"), _, _) => println!("Available commands: (c)ontinue, (s)tep"),
+                (Some(cmd), _, _) => println!("Undefined command: {cmd}. Try \"help\"."),
+                (None, _, _) => {},
+            }
+        }
+    }
+
+    fn write_cmd(&mut self, arg1: &str, arg2: &str) {
+        let val: u8;
+        match parse_u8(arg2) {
+            Ok(v) => val = v,
+            Err(e) => { println!("Error in value: {e}"); return; }
+        }
+
+        match arg1 {
+            _ => match parse_u16(arg1) {
+                Ok(addr) => self.write_memory(addr, val),
+                Err(e) => println!("Error in location: {e}"),
             }
         }
     }
@@ -99,6 +123,25 @@ impl Debugger {
         let cpu = &self.gameboy.cpu;
         println!("AF={:04X}  BC={:04X}  DE={:04X}  HL={:04X}", cpu.af(), cpu.bc(), cpu.de(), cpu.hl());
         println!("SP={:04X}  PC={:04X}  F={}", cpu.sp(), cpu.pc(), flags_string(cpu.f()));
+    }
+
+    fn write_memory(&mut self, addr: u16, byte: u8) {
+        match addr {
+            0x0000..=0x3FFF => self.gameboy.cartridge.as_mut().unwrap().rom[addr as usize] = byte,
+            0xFF00..=0xFF7F => self.gameboy.io_reg.set(addr, byte),
+            _ => todo!(),
+        };
+        println!("[${addr:04X}] = {}", self.read_memory(addr));
+    }
+
+    fn read_memory(&mut self, addr: u16) -> String {
+        let byte: u8;
+        match addr {
+            0x0000..=0x3FFF => byte = self.gameboy.cartridge.as_ref().unwrap().rom[addr as usize],
+            0xFF00..=0xFF7F => byte = self.gameboy.io_reg.get(addr),
+            _ => todo!(),
+        };
+        format!("${byte:02X}")
     }
 }
 
@@ -113,6 +156,13 @@ fn parse_addr(arg: Option<&str>) -> Result<u16, String> {
     match arg {
         None => Err(String::from("Must specify an address")),
         Some(s) => parse_u16(s).map_err(|e| format!("parse addr yielded {e}")),
+    }
+}
+
+fn parse_u8(s: &str) -> Result<u8, std::num::ParseIntError> {
+    match s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).or_else(|| s.strip_prefix('$')) {
+        Some(hex) => u8::from_str_radix(hex, 16),
+        None => s.parse::<u8>(),
     }
 }
 
