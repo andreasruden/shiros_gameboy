@@ -196,6 +196,7 @@ impl CPU {
             op::DI => self.di(bus),
             op::LD_A_ADDR => self.ld_deref_imm16(bus, false),
             op::EI => self.ei(bus),
+            op::CP_A_IMM8 => self.cp(bus, Operand::A, Operand::Imm8),
             _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc - 1),
         }
     }
@@ -496,6 +497,31 @@ impl CPU {
         self.ime = 0xFF;
         ExecState::Done
     }
+
+    fn cp(&mut self, bus: &mut impl Bus, lhs: Operand, rhs: Operand) -> ExecState {
+        // Only implements CP a, imm8 currently
+        match self.m {
+            0 => {
+                if !lhs.is_mem() {
+                    self.z = self.reg8(lhs);
+                }
+                return ExecState::Partial;
+            }
+            1 => {
+                if rhs.is_mem() {
+                    self.w = self.load_mem(bus, rhs);
+                }
+            },
+            _ => unreachable!(),
+        }
+
+        self.update_flag(flag::Z, self.z == self.w);
+        self.set_flag(flag::N);
+        self.update_flag(flag::H, (self.z & 0xF) < (self.w & 0xF));
+        self.update_flag(flag::C, self.z < self.w);
+
+        ExecState::Done
+    }
 }
 
 #[cfg(test)]
@@ -718,6 +744,11 @@ mod tests {
             given { ime: false as u16 }
             cycles[R(0x100, op::EI), R(0x101, op::NOP)]  // dummy instruction to observe change
             expect { pc: 0x102, ime: 0x1 }
+
+        cp_a_imm8:
+            given { a: 42, f: flag::Z.into() }
+            cycles[R(0x100, op::CP_A_IMM8), R(0x101, 43)]
+            expect { pc: 0x102, f: (flag::N | flag::H | flag::C).into() }
     }
 
     macro_rules! ld_r_imm8 {

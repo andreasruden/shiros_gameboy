@@ -53,6 +53,7 @@ opcodes! {
     DI          = 0xF3, "DI";
     LD_A_ADDR   = 0xFA, "LD", A, Addr;
     EI          = 0xFB, "EI";
+    CP_A_IMM8   = 0xFE, "CP", A, Imm8;
 }
 
 impl Operand {
