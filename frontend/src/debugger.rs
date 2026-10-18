@@ -1,5 +1,4 @@
 use std::io::{self, Write};
-use std::mem::uninitialized;
 use std::sync::atomic::{AtomicBool, Ordering};
 use console::{GameBoy, disassembler::disassemble_next, gameboy::StopReason};
 

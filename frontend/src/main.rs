@@ -1,7 +1,10 @@
 mod debugger;
+mod render;
+
+use std::sync::{Arc, atomic::{AtomicBool, Ordering::Release}};
 
 use console::{Cartridge, GameBoy};
-use crate::debugger::Debugger;
+use crate::{debugger::Debugger, render::Render};
 
 struct Args {
     cartridge_path: String,
@@ -16,6 +19,13 @@ fn main() -> Result<(), lexopt::Error> {
 
     let mut gameboy = GameBoy::new();
     gameboy.insert_cartridge(cartridge);
+    let consumer = gameboy.take_lcd_consumer().unwrap();
+    let quit_flag = Arc::new(AtomicBool::new(false));
+
+    let render_quit_flag = quit_flag.clone();
+    let render_thread = std::thread::spawn(move || {
+        Render::new(144, consumer, render_quit_flag).run();
+    });
 
     if args.debugging_enabled {
         let mut debugger = Debugger::new(gameboy);
@@ -24,6 +34,9 @@ fn main() -> Result<(), lexopt::Error> {
         gameboy.power_on();
         gameboy.run();
     }
+
+    quit_flag.store(true, Release);
+    render_thread.join().unwrap();
 
     Ok(())
 }

@@ -135,7 +135,7 @@ impl CPU {
         self.breakpoints.remove(&addr);
     }
 
-    pub fn prepare_boot_loader(&mut self) {
+    pub fn prepare_boot_loader(&mut self, bus: &mut impl Bus) {
         println!("TODO: Bootloader skipped for now");
 
         if self.debug {

@@ -7,3 +7,4 @@ edition = "2024"
 console = { path = "../console", package = "gb-console" }
 lexopt = "0.3.2"
 libc = "0.2.191"
+sdl2 = "0.38"
