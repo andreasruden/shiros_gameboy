@@ -36,6 +36,10 @@ impl LCD {
             producer: producer,
         }
     }
+
+    pub fn push_pixel(&mut self, pixel: u8) {
+        self.producer.push(pixel);
+    }
 }
 
 pub fn make_lcd_channel() -> (Producer, Consumer) {

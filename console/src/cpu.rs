@@ -149,6 +149,14 @@ impl CPU {
         self.h = 0x01; self.l = 0x4D;
         self.sp = 0xFFFE;
         self.pc = 0x0100;
+
+        // Also init the LCD registers to match the result of the DMG boot loader:
+        bus.write(0xFF40, 0x91);  // LCD control
+        bus.write(0xFF41, 0x85);  // LCD status
+        bus.write(0xFF46, 0xFF);  // OAM DMA (Object Attribute Memory: Direct Memory Access) start
+        bus.write(0xFF47, 0xFc);  // background palette
+        bus.write(0xFF48, 0xFF);  // sprite palette 0
+        bus.write(0xFF49, 0xFF);  // sprite palette 1
     }
 
     // Returns a reason for "stopping", if the reason is cycle that indluces how many

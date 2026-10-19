@@ -1,6 +1,6 @@
 // The main struct for the GameBoy, owns the components
 
-use crate::bus::{CpuBus, IoRegisters};
+use crate::bus::{CpuBus, HwRegisters, PpuBus};
 use crate::cpu::CPU;
 use crate::cartridge::Cartridge;
 use crate::lcd::{Consumer, LCD, make_lcd_channel};
@@ -11,8 +11,9 @@ pub struct GameBoy {
     pub ppu: PPU,
     pub lcd: LCD,
     pub cartridge: Option<Cartridge>,
+    pub vram: [u8; 0x2000],
     pub wram: [u8; 0x2000],
-    pub io_reg: IoRegisters,
+    pub hw_reg: HwRegisters,
     pub ie_reg: u8,
     pub hram: [u8; 127],
 
@@ -36,8 +37,9 @@ impl GameBoy {
             ppu: PPU::new(),
             lcd: LCD::new(lcd_producer),
             cartridge: None,
+            vram: [0; 0x2000],
             wram: [0; 0x2000],
-            io_reg: IoRegisters::new(),
+            hw_reg: HwRegisters::new(),
             ie_reg: 0,
             hram: [0; 127],
             lcd_consumer: Some(lcd_consumer),
@@ -51,9 +53,9 @@ impl GameBoy {
     fn cpu_and_bus(&mut self) -> (&mut CPU, CpuBus<'_>) {
         let bus = CpuBus {
             cartridge: &mut self.cartridge,
+            vram: &mut self.vram,
             wram: &mut self.wram,
-            io_reg: &mut self.io_reg,
-            ie_reg: &mut self.ie_reg,
+            hw_reg: &mut self.hw_reg,
             hram: &mut self.hram,
         };
         (&mut self.cpu, bus)
@@ -72,9 +74,15 @@ impl GameBoy {
             match res {
                 StopReason::Step => return StopReason::Step,
                 StopReason::Breakpoint(addr) => return StopReason::Breakpoint(addr),
-                StopReason::Cycle(_) => { /* todo */ },
                 StopReason::Halt => return StopReason::Halt,
                 StopReason::StopRequested => return StopReason::StopRequested,
+                StopReason::Cycle(t_cycles) => {
+                    self.ppu.step(t_cycles, &mut PpuBus {
+                        hw_reg: &mut self.hw_reg,
+                        lcd: &mut self.lcd,
+                        vram: &mut self.vram,
+                    });
+                },
             }
         }
     }
