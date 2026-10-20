@@ -5,6 +5,15 @@ pub struct HwRegisters {
     pub serial_1: u8,       // $FF01
     pub serial_2: u8,       // $FF02
 
+    // Timer
+    pub timer_tma: u8,      // $FF06 timer modulo
+    pub timer_tac: u8,      // $FF07 timer control
+
+    // Audio
+    pub audio_nr50: u8,     // $FF26: master volume & VIN panning
+    pub audio_nr51: u8,     // $FF25: panning
+    pub audio_nr52: u8,     // $FF26: on/off
+
     // LCD registers
     pub lcd_ctrl: u8,       // $FF40 lcd control flags
     pub lcd_stat: u8,       // $FF41 lcd status
@@ -44,6 +53,11 @@ impl HwRegisters {
             i_f: 0,
             serial_1: 0,
             serial_2: 0,
+            timer_tma: 0,
+            timer_tac: 0,
+            audio_nr50: 0,
+            audio_nr51: 0,
+            audio_nr52: 0,
             lcd_ctrl: 0,
             lcd_stat: 0,
             lcd_scy: 0,
@@ -62,6 +76,11 @@ impl HwRegisters {
             0xFF0F => self.i_f,
             0xFF01 => self.serial_1,
             0xFF02 => self.serial_2,
+            0xFF06 => self.timer_tma,
+            0xFF07 => self.timer_tac,
+            0xFF24 => self.audio_nr50,
+            0xFF25 => self.audio_nr51,
+            0xFF26 => self.audio_nr52,
             0xFF40 => self.lcd_ctrl,
             0xFF41 => self.lcd_stat,
             0xFF42 => self.lcd_scy,
@@ -81,6 +100,11 @@ impl HwRegisters {
             0xFF0F => self.i_f = val,
             0xFF01 => self.serial_1 = val,
             0xFF02 => self.serial_2 = val,
+            0xFF06 => self.timer_tma = val,
+            0xFF07 => self.timer_tac = val,
+            0xFF24 => self.audio_nr50 = val,
+            0xFF25 => self.audio_nr51 = val,
+            0xFF26 => self.audio_nr52 = val,
             0xFF40 => self.lcd_ctrl = val,
             0xFF41 => self.lcd_stat = val,
             0xFF42 => self.lcd_scy = val,
@@ -114,10 +138,12 @@ impl Bus for CpuBus<'_> {
 
     fn write(&mut self, addr: u16, byte: u8) {
         match addr {
+            0x0000..=0x7FFF => { /* ignored until MBC is emulated */ },
             0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize] = byte,
             0x8000..=0x9FFF => self.vram[(addr - 0x8000) as usize] = byte,
+            0xFEA0..=0xFEFF => { /* writes to not usable section is just ignored */},
             0xFF00..=0xFF7F => self.hw_reg.set(addr, byte),
-            0xFF80..=0xFFFe => self.hram[(addr - 0xFF80) as usize] = byte,
+            0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize] = byte,
             0xFFFF => self.hw_reg.set(addr, byte),
             _ => todo!("CpuBus::write for {addr:04X} not handled"),
         };
