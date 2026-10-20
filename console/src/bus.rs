@@ -115,6 +115,7 @@ impl HwRegisters {
             0xFF47 => self.bgp = val,
             0xFF48 => self.obp0 = val,
             0xFF49 => self.obp1 = val,
+            0xFF4C..=0xFF7F => { /* unused in DMG */ },
             0xFFFF => self.ie = val,
             _ => todo!("HwRegisters::set for {addr:04X} not handled"),
         }
