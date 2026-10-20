@@ -199,6 +199,7 @@ impl CPU {
             op::LDI_HL_A => self.ld_byte(bus, Operand::DerefHLPlus, Operand::A),
             op::LDI_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLPlus),
             op::LDD_HL_A => self.ld_byte(bus, Operand::DerefHLMinus, Operand::A),
+            op::LD_DHL_IMM8 => self.ld_deref_hl_imm8(bus),
             op::LDD_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLMinus),
             op::INC_A => self.inc_a(bus),
             op::LD_A_IMM8 => self.ld_byte(bus, Operand::A, Operand::Imm8),
@@ -471,6 +472,16 @@ impl CPU {
         }
     }
 
+    // This function only implements LD [HL], imm8
+    fn ld_deref_hl_imm8(&mut self, bus: &mut impl Bus) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => { self.z = self.load_mem(bus, Operand::Imm8); ExecState::Partial },
+            2 => { self.store_mem(bus, Operand::DerefHL, self.z); ExecState::Done },
+            _ => unreachable!(),
+        }
+    }
+
     fn ldh(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
         // TODO: This is only implemented for 0xE0 and 0xF0
         match self.m {
@@ -696,6 +707,11 @@ mod tests {
             given  { hl: 0xC000, a: 42 }
             cycles [R(0x0100, op::LDI_HL_A), W(0xC000, 42)]
             expect { pc: 0x0101, a: 42, hl: 0xC001 }
+
+        ld_dhl_imm8:
+            given { hl: 0xC000 }
+            cycles [R(0x100, op::LD_DHL_IMM8), R(0x101, 42), W(0xC000, 42)]
+            expect { pc: 0x102 }
 
         ldi_a_hl:
             given  { hl: 0xC000 }

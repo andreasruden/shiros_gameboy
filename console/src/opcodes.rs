@@ -42,6 +42,7 @@ opcodes! {
     LDI_HL_A    = 0x22, "LD", DerefHLPlus, A;
     LDI_A_HL    = 0x2A, "LD", A, DerefHLPlus;
     LDD_HL_A    = 0x32, "LD", DerefHLMinus, A;
+    LD_DHL_IMM8 = 0x36, "LD", DerefHL, Imm8;
     LDD_A_HL    = 0x3A, "LD", A, DerefHLMinus;
     INC_A       = 0x3C, "INC", A;
     LD_A_IMM8   = 0x3E, "LD", A, Imm8;
