@@ -41,11 +41,13 @@ opcodes! {
     LD_HL_IMM16 = 0x21, "LD", HL, Imm16;
     LDI_HL_A    = 0x22, "LD", DerefHLPlus, A;
     LDI_A_HL    = 0x2A, "LD", A, DerefHLPlus;
+    LD_SP_IMM16 = 0x31, "LD", SP, A;
     LDD_HL_A    = 0x32, "LD", DerefHLMinus, A;
     LD_DHL_IMM8 = 0x36, "LD", DerefHL, Imm8;
     LDD_A_HL    = 0x3A, "LD", A, DerefHLMinus;
     INC_A       = 0x3C, "INC", A;
     LD_A_IMM8   = 0x3E, "LD", A, Imm8;
+    LD_DHL_A    = 0x77, "LD", DerefHL, A;
     XOR_AA      = 0xAF, "XOR", A, A;
     JP          = 0xC3, "JP", Imm16;
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;

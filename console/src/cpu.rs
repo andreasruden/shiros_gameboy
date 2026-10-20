@@ -198,11 +198,13 @@ impl CPU {
             op::LD_HL_IMM16 => self.ld_word(bus, Operand::HL, Operand::Imm16),
             op::LDI_HL_A => self.ld_byte(bus, Operand::DerefHLPlus, Operand::A),
             op::LDI_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLPlus),
+            op::LD_SP_IMM16 => self.ld_word(bus, Operand::SP, Operand::Imm16),
             op::LDD_HL_A => self.ld_byte(bus, Operand::DerefHLMinus, Operand::A),
             op::LD_DHL_IMM8 => self.ld_deref_hl_imm8(bus),
             op::LDD_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLMinus),
             op::INC_A => self.inc_a(bus),
             op::LD_A_IMM8 => self.ld_byte(bus, Operand::A, Operand::Imm8),
+            op::LD_DHL_A => self.ld_byte(bus, Operand::DerefHL, Operand::A),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
             op::LDH_IMM8_A => self.ldh(bus, Operand::Imm8, Operand::A),
@@ -736,6 +738,11 @@ mod tests {
         ld_a_imm8:
             cycles [R(0x100, op::LD_A_IMM8), R(0x101, 42)]
             expect { pc: 0x102, a: 42 }
+
+        ld_dhl_a:
+            given { hl: 0xC040, a: 42 }
+            cycles [R(0x100, op::LD_DHL_A), W(0xC040, 42)]
+            expect { pc: 0x101 }
 
         xor_aa:
             given { a: 42 }
