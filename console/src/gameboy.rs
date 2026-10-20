@@ -13,6 +13,7 @@ pub struct GameBoy {
     pub cartridge: Option<Cartridge>,
     pub vram: [u8; 0x2000],
     pub wram: [u8; 0x2000],
+    pub oam: [u8; 160],  // Object Attribute Memory
     pub hw_reg: HwRegisters,
     pub ie_reg: u8,
     pub hram: [u8; 127],
@@ -39,6 +40,7 @@ impl GameBoy {
             cartridge: None,
             vram: [0; 0x2000],
             wram: [0; 0x2000],
+            oam: [0; 160],
             hw_reg: HwRegisters::new(),
             ie_reg: 0,
             hram: [0; 127],
@@ -55,6 +57,7 @@ impl GameBoy {
             cartridge: &mut self.cartridge,
             vram: &mut self.vram,
             wram: &mut self.wram,
+            oam: &mut self.oam,
             hw_reg: &mut self.hw_reg,
             hram: &mut self.hram,
         };

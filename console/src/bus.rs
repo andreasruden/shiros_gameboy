@@ -37,6 +37,7 @@ pub struct CpuBus<'a> {
     pub cartridge: &'a mut Option<Cartridge>,
     pub vram: &'a mut [u8; 0x2000],
     pub wram: &'a mut [u8; 0x2000],
+    pub oam: &'a mut [u8; 160],
     pub hw_reg: &'a mut HwRegisters,
     pub hram: &'a mut [u8; 127],
 }
@@ -141,6 +142,13 @@ impl Bus for CpuBus<'_> {
             0x0000..=0x7FFF => { /* ignored until MBC is emulated */ },
             0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize] = byte,
             0x8000..=0x9FFF => self.vram[(addr - 0x8000) as usize] = byte,
+            0xFE00..=0xFE9F => {
+                // CPU can only write to this area during HBlank and VBlank; mode 0 and 1
+                let ppu_mode = self.hw_reg.lcd_stat & !0b11;
+                if ppu_mode == 0 || ppu_mode == 1 {
+                    self.oam[(addr - 0xFE00) as usize] = byte;
+                }
+            },
             0xFEA0..=0xFEFF => { /* writes to not usable section is just ignored */},
             0xFF00..=0xFF7F => self.hw_reg.set(addr, byte),
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize] = byte,
