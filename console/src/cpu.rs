@@ -190,19 +190,30 @@ impl CPU {
     fn execute_cycle(&mut self, bus: &mut impl Bus) -> ExecState {
         match self.ir {
             op::NOP => self.nop(bus),
+            op::INC_B => self.dec_reg8(bus, Operand::B),
             op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
+            op::INC_C => self.inc_reg8(bus, Operand::C),
             op::DEC_C => self.dec_reg8(bus, Operand::C),
             op::LD_C_IMM8 => self.ld_byte(bus, Operand::C, Operand::Imm8),
+            op::INC_D => self.inc_reg8(bus, Operand::D),
+            op::DEC_D => self.dec_reg8(bus, Operand::D),
+            op::INC_E => self.inc_reg8(bus, Operand::E),
+            op::DEC_E => self.dec_reg8(bus, Operand::E),
             op::JR_NZ_IMM8 => self.jr(bus, |s| !s.is_set(flag::Z)),
             op::LD_HL_IMM16 => self.ld_word(bus, Operand::HL, Operand::Imm16),
             op::LDI_HL_A => self.ld_byte(bus, Operand::DerefHLPlus, Operand::A),
+            op::INC_H => self.inc_reg8(bus, Operand::H),
+            op::DEC_H => self.dec_reg8(bus, Operand::H),
             op::LDI_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLPlus),
             op::LD_SP_IMM16 => self.ld_word(bus, Operand::SP, Operand::Imm16),
+            op::INC_L => self.inc_reg8(bus, Operand::L),
+            op::DEC_L => self.dec_reg8(bus, Operand::L),
             op::LDD_HL_A => self.ld_byte(bus, Operand::DerefHLMinus, Operand::A),
             op::LD_DHL_IMM8 => self.ld_deref_hl_imm8(bus),
             op::LDD_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLMinus),
-            op::INC_A => self.inc_a(bus),
+            op::INC_A => self.inc_reg8(bus, Operand::A),
+            op::DEC_A => self.dec_reg8(bus, Operand::A),
             op::LD_A_IMM8 => self.ld_byte(bus, Operand::A, Operand::Imm8),
             op::LD_DHL_A => self.ld_byte(bus, Operand::DerefHL, Operand::A),
             op::XOR_AA => self.xor(bus, Operand::A),
@@ -332,13 +343,26 @@ impl CPU {
         ExecState::Done
     }
 
-    fn inc_a(&mut self, _bus: &mut impl Bus) -> ExecState {
-        let value = self.a;
-        let result = value.wrapping_add(1);
-        self.update_flag(flag::Z, result == 0);
+    fn inc_reg8(&mut self, _bus: &mut impl Bus, reg: Operand) -> ExecState {
+        let val = self.reg8(reg);
+        let new_val = val.wrapping_add(1);
+        self.set_reg8(reg, new_val);
+
+        self.update_flag(flag::Z, new_val == 0);
         self.clear_flag(flag::N);
-        self.update_flag(flag::H, (value & 0x0F) == 0x0F);
-        self.a = result;
+        self.update_flag(flag::H, (val & 0x0F) == 0x0F);
+
+        ExecState::Done
+    }
+
+    fn dec_reg8(&mut self, _bus: &mut impl Bus, reg: Operand) -> ExecState {
+        let new_val = self.reg8(reg).wrapping_sub(1);
+        self.set_reg8(reg, new_val);
+
+        self.update_flag(flag::Z, new_val == 0);
+        self.update_flag(flag::H, (new_val & 0x0F) == 0x0F);
+        self.set_flag(flag::N);
+
         ExecState::Done
     }
 
@@ -526,17 +550,6 @@ impl CPU {
             }
             _ => unreachable!(),
         }
-    }
-
-    fn dec_reg8(&mut self, _bus: &mut impl Bus, reg: Operand) -> ExecState {
-        let new_val = self.reg8(reg).wrapping_sub(1);
-        self.set_reg8(reg, new_val);
-
-        self.update_flag(flag::Z, new_val == 0);
-        self.update_flag(flag::H, (new_val & 0x0F) == 0x0F);
-        self.set_flag(flag::N);
-
-        ExecState::Done
     }
 
     fn di(&mut self, _bus: &mut impl Bus) -> ExecState {
