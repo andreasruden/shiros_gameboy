@@ -207,9 +207,11 @@ impl CPU {
             op::LD_DHL_A => self.ld_byte(bus, Operand::DerefHL, Operand::A),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
-            op::LDH_IMM8_A => self.ldh(bus, Operand::Imm8, Operand::A),
+            op::LDH_IMM8_A => self.ldh_12(bus, Operand::Imm8, Operand::A),
+            op::LDH_C_A => self.ldh_8(bus, Operand::C, Operand::A),
             op::LD_ADDR_A => self.ld_deref_imm16(bus, true),
-            op::LDH_A_IMM8 => self.ldh(bus, Operand::A, Operand::Imm8),
+            op::LDH_A_IMM8 => self.ldh_12(bus, Operand::A, Operand::Imm8),
+            op::LDH_A_C => self.ldh_8(bus, Operand::A, Operand::C),
             op::DI => self.di(bus),
             op::LD_A_ADDR => self.ld_deref_imm16(bus, false),
             op::EI => self.ei(bus),
@@ -484,8 +486,26 @@ impl CPU {
         }
     }
 
-    fn ldh(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
-        // TODO: This is only implemented for 0xE0 and 0xF0
+    // Implements LDH [C], A and LDH A, [C]
+    fn ldh_8(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => {
+                if src == Operand::C {
+                    assert!(dst == Operand::A);
+                    self.a = bus.read(0xFF00 + self.c as u16);
+                } else {
+                    assert!(dst == Operand::C && src == Operand::A);
+                    bus.write(0xFF00 + self.c as u16, self.a);
+                }
+                ExecState::Done
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    // Implements LDH [imm8], A and LDH a, [imm8]
+    fn ldh_12(&mut self, bus: &mut impl Bus, dst: Operand, src: Operand) -> ExecState {
         match self.m {
             0 => ExecState::Partial,
             1 => {
@@ -757,6 +777,11 @@ mod tests {
             given { a: 42 }
             cycles[R(0x100, op::LDH_IMM8_A), R(0x101, 0xF1), W(0xFFF1, 42)]
             expect { pc: 0x102 }
+
+        ldh_deref_c_a:
+            given { a: 42, c: 0xAA }
+            cycles [R(0x100, op::LDH_C_A), W(0xFFAA, 42)]
+            expect { pc: 0x101 }
 
         ld_addr_a:
             given { a: 42 }

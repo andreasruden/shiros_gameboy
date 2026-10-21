@@ -51,8 +51,10 @@ opcodes! {
     XOR_AA      = 0xAF, "XOR", A, A;
     JP          = 0xC3, "JP", Imm16;
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
+    LDH_C_A     = 0xE2, "LDH", C, A;
     LD_ADDR_A   = 0xEA, "LD", Addr, A;
     LDH_A_IMM8  = 0xF0, "LDH", A, Imm8;
+    LDH_A_C     = 0xF2, "LDH", A, C;
     DI          = 0xF3, "DI";
     LD_A_ADDR   = 0xFA, "LD", A, Addr;
     EI          = 0xFB, "EI";
