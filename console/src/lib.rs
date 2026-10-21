@@ -1,5 +1,6 @@
 mod bus;
 pub mod cartridge;
+mod clock;
 mod cpu;
 pub mod disassembler;
 pub mod gameboy;

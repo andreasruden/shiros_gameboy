@@ -1,12 +1,14 @@
 // The main struct for the GameBoy, owns the components
 
 use crate::bus::{CpuBus, HwRegisters, PpuBus};
+use crate::clock::Clock;
 use crate::cpu::CPU;
 use crate::cartridge::Cartridge;
 use crate::lcd::{Consumer, LCD, make_lcd_channel};
 use crate::ppu::PPU;
 
 pub struct GameBoy {
+    pub clock: Clock,
     pub cpu: CPU,
     pub ppu: PPU,
     pub lcd: LCD,
@@ -34,6 +36,7 @@ impl GameBoy {
     pub fn new() -> Self {
         let (lcd_producer, lcd_consumer) = make_lcd_channel();
         GameBoy {
+            clock: Clock::new(),
             cpu: CPU::new(),
             ppu: PPU::new(),
             lcd: LCD::new(lcd_producer),
@@ -85,6 +88,8 @@ impl GameBoy {
                         lcd: &mut self.lcd,
                         vram: &mut self.vram,
                     });
+
+                    self.clock.advance(t_cycles);
                 },
             }
         }
