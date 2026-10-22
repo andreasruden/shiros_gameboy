@@ -33,12 +33,14 @@ macro_rules! opcodes {
 
 opcodes! {
     NOP         = 0x00, "NOP";
+    LD_BC_IMM16 = 0x01, "LD", BC, Imm16;
     INC_B       = 0x04, "INC", B;
     DEC_B       = 0x05, "DEC", B;
     LD_B_IMM8   = 0x06, "LD", B, Imm8;
     INC_C       = 0x0C, "INC", C;
     DEC_C       = 0x0D, "DEC", C;
     LD_C_IMM8   = 0x0E, "LD", C, Imm8;
+    LD_DE_IMM16 = 0x11, "LD", DE, Imm16;
     INC_D       = 0x14, "INC", D;
     DEC_D       = 0x15, "DEC", D;
     INC_E       = 0x1C, "INC", E;

@@ -190,12 +190,14 @@ impl CPU {
     fn execute_cycle(&mut self, bus: &mut impl Bus) -> ExecState {
         match self.ir {
             op::NOP => self.nop(bus),
+            op::LD_BC_IMM16 => self.ld_word(bus, Operand::BC, Operand::Imm16),
             op::INC_B => self.dec_reg8(bus, Operand::B),
             op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
             op::INC_C => self.inc_reg8(bus, Operand::C),
             op::DEC_C => self.dec_reg8(bus, Operand::C),
             op::LD_C_IMM8 => self.ld_byte(bus, Operand::C, Operand::Imm8),
+            op::LD_DE_IMM16 => self.ld_word(bus, Operand::DE, Operand::Imm16),
             op::INC_D => self.inc_reg8(bus, Operand::D),
             op::DEC_D => self.dec_reg8(bus, Operand::D),
             op::INC_E => self.inc_reg8(bus, Operand::E),
