@@ -186,50 +186,76 @@ impl CPU {
         StopReason::Cycle(4)
     }
 
-    // implements the execute FSM
+    // Implements the execute FSM
     fn execute_cycle(&mut self, bus: &mut impl Bus) -> ExecState {
         match self.ir {
+            // 0X
             op::NOP => self.nop(bus),
             op::LD_BC_IMM16 => self.ld_word(bus, Operand::BC, Operand::Imm16),
-            op::INC_B => self.dec_reg8(bus, Operand::B),
+            op::INC_BC => self.inc_reg16(bus, Operand::BC),
+            op::INC_B => self.inc_reg8(bus, Operand::B),
             op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
+            op::DEC_BC => self.dec_reg16(bus, Operand::BC),
             op::INC_C => self.inc_reg8(bus, Operand::C),
             op::DEC_C => self.dec_reg8(bus, Operand::C),
             op::LD_C_IMM8 => self.ld_byte(bus, Operand::C, Operand::Imm8),
+
+            // 1X
             op::LD_DE_IMM16 => self.ld_word(bus, Operand::DE, Operand::Imm16),
+            op::INC_DE => self.inc_reg16(bus, Operand::DE),
             op::INC_D => self.inc_reg8(bus, Operand::D),
             op::DEC_D => self.dec_reg8(bus, Operand::D),
+            op::DEC_DE => self.dec_reg16(bus, Operand::DE),
             op::INC_E => self.inc_reg8(bus, Operand::E),
             op::DEC_E => self.dec_reg8(bus, Operand::E),
+
+            // 2X
             op::JR_NZ_IMM8 => self.jr(bus, |s| !s.is_set(flag::Z)),
             op::LD_HL_IMM16 => self.ld_word(bus, Operand::HL, Operand::Imm16),
             op::LDI_HL_A => self.ld_byte(bus, Operand::DerefHLPlus, Operand::A),
+            op::INC_HL => self.inc_reg16(bus, Operand::HL),
             op::INC_H => self.inc_reg8(bus, Operand::H),
             op::DEC_H => self.dec_reg8(bus, Operand::H),
             op::LDI_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLPlus),
+            op::DEC_HL => self.dec_reg16(bus, Operand::HL),
             op::LD_SP_IMM16 => self.ld_word(bus, Operand::SP, Operand::Imm16),
             op::INC_L => self.inc_reg8(bus, Operand::L),
             op::DEC_L => self.dec_reg8(bus, Operand::L),
+
+            // 3X
             op::LDD_HL_A => self.ld_byte(bus, Operand::DerefHLMinus, Operand::A),
+            op::INC_SP => self.inc_reg16(bus, Operand::SP),
             op::LD_DHL_IMM8 => self.ld_deref_hl_imm8(bus),
             op::LDD_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLMinus),
+            op::DEC_SP => self.dec_reg16(bus, Operand::SP),
             op::INC_A => self.inc_reg8(bus, Operand::A),
             op::DEC_A => self.dec_reg8(bus, Operand::A),
             op::LD_A_IMM8 => self.ld_byte(bus, Operand::A, Operand::Imm8),
+
+            // 7X
             op::LD_DHL_A => self.ld_byte(bus, Operand::DerefHL, Operand::A),
+
+            // AX
             op::XOR_AA => self.xor(bus, Operand::A),
+
+            // CX
             op::JP => self.jp(bus),
             op::CALL_IMM16 => self.call_imm16(bus),
+
+            // EX
             op::LDH_IMM8_A => self.ldh_12(bus, Operand::Imm8, Operand::A),
             op::LDH_C_A => self.ldh_8(bus, Operand::C, Operand::A),
             op::LD_ADDR_A => self.ld_deref_imm16(bus, true),
+
+            // FX
             op::LDH_A_IMM8 => self.ldh_12(bus, Operand::A, Operand::Imm8),
             op::LDH_A_C => self.ldh_8(bus, Operand::A, Operand::C),
             op::DI => self.di(bus),
             op::LD_A_ADDR => self.ld_deref_imm16(bus, false),
             op::EI => self.ei(bus),
             op::CP_A_IMM8 => self.cp(bus, Operand::A, Operand::Imm8),
+
             _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc - 1),
         }
     }
@@ -322,6 +348,26 @@ impl CPU {
         }
     }
 
+    fn reg16(&self, reg: Operand) -> u16 {
+        match reg {
+            Operand::BC => self.bc(),
+            Operand::DE => self.de(),
+            Operand::HL => self.hl(),
+            Operand::SP => self.sp(),
+            _ => unreachable!("{reg} is not a 16-bit register"),
+        }
+    }
+
+    fn set_reg16(&mut self, reg: Operand, val: u16) {
+        match reg {
+            Operand::BC => self.set_bc(val),
+            Operand::DE => self.set_de(val),
+            Operand::HL => self.set_hl(val),
+            Operand::SP => self.set_sp(val),
+            _ => unreachable!("{reg} is not a 16-bit register"),
+        }
+    }
+
     fn set_flag(&mut self, flag: u8) {
         self.f |= flag;
     }
@@ -365,6 +411,33 @@ impl CPU {
         self.update_flag(flag::Z, new_val == 0);
         self.update_flag(flag::H, (new_val & 0x0F) == 0x0F);
         self.set_flag(flag::N);
+
+        ExecState::Done
+    }
+
+    fn inc_reg16(&mut self, _bus: &mut impl Bus, reg: Operand) -> ExecState {
+        if self.m == 0 {
+            return ExecState::Partial;
+        }
+
+        let val = self.reg16(reg);
+        let new_val = val.wrapping_add(1);
+        self.set_reg16(reg, new_val);
+
+        // No flags are updated for these increases
+
+        ExecState::Done
+    }
+
+    fn dec_reg16(&mut self, _bus: &mut impl Bus, reg: Operand) -> ExecState {
+        if self.m == 0 {
+            return ExecState::Partial;
+        }
+
+        let new_val = self.reg16(reg).wrapping_sub(1);
+        self.set_reg16(reg, new_val);
+
+        // No flags are updated for these decreases
 
         ExecState::Done
     }
@@ -781,10 +854,20 @@ mod tests {
             cycles [R(0x0100, op::LDD_HL_A), W(0xC000, 42)]
             expect { pc: 0x0101, a: 42, hl: 0xBFFF }
 
+        inc_sp:
+            given { sp: 0x1122 }
+            cycles [R(0x100, op::INC_SP), Idle]
+            expect { pc: 0x101, sp: 0x1123 }
+
         ldd_a_hl:
             given  { hl: 0xC000 }
             cycles [R(0x0100, op::LDD_A_HL), R(0xC000, 42)]
             expect { pc: 0x0101, a: 42, hl: 0xBFFF }
+
+        dec_sp:
+            given { sp: 0x1122 }
+            cycles [R(0x100, op::DEC_SP), Idle]
+            expect { pc: 0x101, sp: 0x1121 }
 
         inc_a:
             given { a: 0x3F, f: (flag::Z | flag::N).into() }

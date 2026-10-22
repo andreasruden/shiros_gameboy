@@ -31,42 +31,60 @@ macro_rules! opcodes {
     };
 }
 
+// BC, DE, HL, SP
+
 opcodes! {
     NOP         = 0x00, "NOP";
     LD_BC_IMM16 = 0x01, "LD", BC, Imm16;
+    INC_BC      = 0x03, "INC", BC;
     INC_B       = 0x04, "INC", B;
     DEC_B       = 0x05, "DEC", B;
     LD_B_IMM8   = 0x06, "LD", B, Imm8;
+    DEC_BC      = 0x0B, "DEC", BC;
     INC_C       = 0x0C, "INC", C;
     DEC_C       = 0x0D, "DEC", C;
     LD_C_IMM8   = 0x0E, "LD", C, Imm8;
+
     LD_DE_IMM16 = 0x11, "LD", DE, Imm16;
+    INC_DE      = 0x13, "INC", DE;
     INC_D       = 0x14, "INC", D;
     DEC_D       = 0x15, "DEC", D;
+    DEC_DE      = 0x1B, "DEC", DE;
     INC_E       = 0x1C, "INC", E;
     DEC_E       = 0x1D, "DEC", E;
+
     JR_NZ_IMM8  = 0x20, "JR NZ,", Imm8;
     LD_HL_IMM16 = 0x21, "LD", HL, Imm16;
     LDI_HL_A    = 0x22, "LD", DerefHLPlus, A;
+    INC_HL      = 0x23, "INC", HL;
     INC_H       = 0x24, "INC", H;
     DEC_H       = 0x25, "DEC", H;
     LDI_A_HL    = 0x2A, "LD", A, DerefHLPlus;
+    DEC_HL      = 0x2B, "DEC", HL;
     INC_L       = 0x2C, "INC", L;
     DEC_L       = 0x2D, "DEC", L;
+
     LD_SP_IMM16 = 0x31, "LD", SP, A;
     LDD_HL_A    = 0x32, "LD", DerefHLMinus, A;
+    INC_SP      = 0x33, "INC", SP;
     LD_DHL_IMM8 = 0x36, "LD", DerefHL, Imm8;
     LDD_A_HL    = 0x3A, "LD", A, DerefHLMinus;
+    DEC_SP      = 0x3B, "DEC", SP;
     INC_A       = 0x3C, "INC", A;
     DEC_A       = 0x3D, "DEC", A;
     LD_A_IMM8   = 0x3E, "LD", A, Imm8;
+
     LD_DHL_A    = 0x77, "LD", DerefHL, A;
+
     XOR_AA      = 0xAF, "XOR", A, A;
+
     JP          = 0xC3, "JP", Imm16;
     CALL_IMM16  = 0xCD, "CALL", Imm16;
+
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
     LDH_C_A     = 0xE2, "LDH", C, A;
     LD_ADDR_A   = 0xEA, "LD", Addr, A;
+
     LDH_A_IMM8  = 0xF0, "LDH", A, Imm8;
     LDH_A_C     = 0xF2, "LDH", A, C;
     DI          = 0xF3, "DI";
