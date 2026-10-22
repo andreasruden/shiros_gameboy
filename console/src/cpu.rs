@@ -218,6 +218,7 @@ impl CPU {
             op::LD_DHL_A => self.ld_byte(bus, Operand::DerefHL, Operand::A),
             op::XOR_AA => self.xor(bus, Operand::A),
             op::JP => self.jp(bus),
+            op::CALL_IMM16 => self.call_imm16(bus),
             op::LDH_IMM8_A => self.ldh_12(bus, Operand::Imm8, Operand::A),
             op::LDH_C_A => self.ldh_8(bus, Operand::C, Operand::A),
             op::LD_ADDR_A => self.ld_deref_imm16(bus, true),
@@ -379,6 +380,26 @@ impl CPU {
         self.clear_flag(flag::C);
 
         ExecState::Done
+    }
+
+    fn call_imm16(&mut self, bus: &mut impl Bus) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => { self.z = self.load_pc(bus); ExecState::Partial },
+            2 => { self.w = self.load_pc(bus); ExecState::Partial },
+            3 => { self.sp -= 1; ExecState::Partial },
+            4 => {
+                bus.write(self.sp, (self.pc >> 8) as u8);
+                self.sp -= 1;
+                ExecState::Partial
+            },
+            5 => {
+                bus.write(self.sp, self.pc as u8);
+                self.pc = u16::from_le_bytes([self.z, self.w]);
+                ExecState::Done
+            },
+            _ => unreachable!(),
+        }
     }
 
     fn jp(&mut self, bus: &mut impl Bus) -> ExecState {
@@ -785,6 +806,11 @@ mod tests {
         jp:
             cycles [R(0x100, op::JP), R(0x101, 0xCC), R(0x102, 0xDD), Idle]
             expect { pc: 0xDDCC }
+
+        call_imm16:
+            given { sp: 0xFFF4 }
+            cycles [R(0x100, op::CALL_IMM16), R(0x101, 0x3C), R(0x102, 0x02), Idle, W(0xFFF3, 0x01), W(0xFFF2, 0x03)]
+            expect { pc: 0x023C, sp: 0xFFF2 }
 
         ldh_imm8_a:
             given { a: 42 }

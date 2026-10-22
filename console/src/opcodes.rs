@@ -61,6 +61,7 @@ opcodes! {
     LD_DHL_A    = 0x77, "LD", DerefHL, A;
     XOR_AA      = 0xAF, "XOR", A, A;
     JP          = 0xC3, "JP", Imm16;
+    CALL_IMM16  = 0xCD, "CALL", Imm16;
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
     LDH_C_A     = 0xE2, "LDH", C, A;
     LD_ADDR_A   = 0xEA, "LD", Addr, A;
