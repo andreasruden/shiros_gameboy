@@ -20,6 +20,9 @@ pub struct HwRegisters {
     pub obp0: u8,           // OBJ palette 0 data
     pub obp1: u8,           // OBJ palette 1 data
 
+    pub wy: u8,             // $FF4A window y position
+    pub wx: u8,             // $FF4B window x position + 7
+
     pub ie: u8,             // $FFFF interrupt enable
 }
 
@@ -61,6 +64,8 @@ impl HwRegisters {
             bgp: 0,
             obp0: 0,
             obp1: 0,
+            wy: 0,
+            wx: 0,
             ie: 0,
         }
     }
@@ -81,6 +86,8 @@ impl HwRegisters {
             0xFF47 => self.bgp,
             0xFF48 => self.obp0,
             0xFF49 => self.obp1,
+            0xFF4A => self.wy,
+            0xFF4B => self.wx,
             0xFFFF => self.ie,
             _ => todo!("HwRegisters::get for {addr:04X} not handled"),
         }
@@ -102,6 +109,8 @@ impl HwRegisters {
             0xFF47 => self.bgp = val,
             0xFF48 => self.obp0 = val,
             0xFF49 => self.obp1 = val,
+            0xFF4A => self.wy = val,
+            0xFF4B => self.wx = val,
             0xFF4C..=0xFF7F => { /* unused in DMG */ },
             0xFFFF => self.ie = val,
             _ => todo!("HwRegisters::set for {addr:04X} not handled"),
