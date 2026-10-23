@@ -325,9 +325,15 @@ impl CPU {
             op::OR_A_A => self.or(bus, Operand::A),
 
             // CX
+            op::RET_NZ => self.ret_test(bus, flag::Z, false),
             op::JP => self.jp(bus),
+            op::RET_Z => self.ret_test(bus, flag::Z, true),
             op::RET => self.ret(bus),
             op::CALL_IMM16 => self.call_imm16(bus),
+
+            // DX
+            op::RET_NC => self.ret_test(bus, flag::C, false),
+            op::RET_C => self.ret_test(bus, flag::C, true),
 
             // EX
             op::LDH_IMM8_A => self.ldh_12(bus, Operand::Imm8, Operand::A),
@@ -632,6 +638,34 @@ impl CPU {
                 ExecState::Partial
             },
             3 => {
+                self.set_pc(u16::from_le_bytes([self.z, self.w]));
+                ExecState::Done
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn ret_test(&mut self, bus: &mut impl Bus, flag: u8, set: bool) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => {
+                let take_branch = set == self.is_set(flag);
+                if !take_branch {
+                    return ExecState::Done;
+                }
+                ExecState::Partial
+            },
+            2 => {
+                self.z = bus.read(self.sp());
+                self.set_sp(self.sp() + 1);
+                ExecState::Partial
+            },
+            3 => {
+                self.w = bus.read(self.sp());
+                self.set_sp(self.sp() + 1);
+                ExecState::Partial
+            },
+            4 => {
                 self.set_pc(u16::from_le_bytes([self.z, self.w]));
                 ExecState::Done
             }
@@ -1093,6 +1127,15 @@ mod tests {
             given { sp: 0xFFF4 }
             cycles [R(0x100, op::CALL_IMM16), R(0x101, 0x3C), R(0x102, 0x02), Idle, W(0xFFF3, 0x01), W(0xFFF2, 0x03)]
             expect { pc: 0x023C, sp: 0xFFF2 }
+
+        ret_c_not_taken:
+            cycles [R(0x100, op::RET_C), Idle]
+            expect { pc: 0x101 }
+
+        ret_c_taken:
+            given { f: flag::C.into(), sp: 0xFFE0 }
+            cycles [R(0x100, op::RET_C), Idle, R(0xFFE0, 0x11), R(0xFFE1, 0xAA), Idle]
+            expect { pc: 0xAA11, sp: 0xFFE2 }
 
         ldh_imm8_a:
             given { a: 42 }

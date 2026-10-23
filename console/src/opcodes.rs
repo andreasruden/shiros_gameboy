@@ -162,9 +162,14 @@ opcodes! {
     OR_A_DHL    = 0xB6, "OR", A, DerefHL;
     OR_A_A      = 0xB7, "OR", A, A;
 
+    RET_NZ      = 0xC0, "RET NZ";
     JP          = 0xC3, "JP", Imm16;
+    RET_Z       = 0xC8, "RET Z";
     RET         = 0xC9, "RET";
     CALL_IMM16  = 0xCD, "CALL", Imm16;
+
+    RET_NC      = 0xD0, "RET NC";
+    RET_C       = 0xD8, "RET C";
 
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
     LDH_C_A     = 0xE2, "LDH", C, A;
