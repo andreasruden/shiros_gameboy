@@ -3,7 +3,10 @@ use core::fmt;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Operand {
     // Registers
-    AF, A, BC, B, C, DE, D, E, HL, H, L, DerefHL, DerefHLPlus, DerefHLMinus, SP,
+    AF, A, BC, B, C, DE, D, E, HL, H, L, SP,
+
+    // Registers used as addresses
+    DerefBC, DerefDE, DerefHL, DerefHLPlus, DerefHLMinus,
 
     // Immediates
     Imm8, Imm16, Addr
@@ -36,22 +39,28 @@ macro_rules! opcodes {
 opcodes! {
     NOP         = 0x00, "NOP";
     LD_BC_IMM16 = 0x01, "LD", BC, Imm16;
+    LD_DBC_A    = 0x02, "LD", DerefBC, A;
     INC_BC      = 0x03, "INC", BC;
     INC_B       = 0x04, "INC", B;
     DEC_B       = 0x05, "DEC", B;
     LD_B_IMM8   = 0x06, "LD", B, Imm8;
+    LD_A_DBC    = 0x0A, "LD", A, DerefBC;
     DEC_BC      = 0x0B, "DEC", BC;
     INC_C       = 0x0C, "INC", C;
     DEC_C       = 0x0D, "DEC", C;
     LD_C_IMM8   = 0x0E, "LD", C, Imm8;
 
     LD_DE_IMM16 = 0x11, "LD", DE, Imm16;
+    LD_DDE_A    = 0x12, "LD", DerefDE, A;
     INC_DE      = 0x13, "INC", DE;
     INC_D       = 0x14, "INC", D;
     DEC_D       = 0x15, "DEC", D;
+    LD_D_IMM8   = 0x16, "LD", D, Imm8;
+    LD_A_DDE    = 0x1A, "LD", A, DerefDE;
     DEC_DE      = 0x1B, "DEC", DE;
     INC_E       = 0x1C, "INC", E;
     DEC_E       = 0x1D, "DEC", E;
+    LD_E_IMM8   = 0x1E, "LD", E, Imm8;
 
     JR_NZ_IMM8  = 0x20, "JR NZ,", Imm8;
     LD_HL_IMM16 = 0x21, "LD", HL, Imm16;
@@ -59,12 +68,14 @@ opcodes! {
     INC_HL      = 0x23, "INC", HL;
     INC_H       = 0x24, "INC", H;
     DEC_H       = 0x25, "DEC", H;
+    LD_H_IMM8   = 0x26, "LD", H, Imm8;
     LDI_A_HL    = 0x2A, "LD", A, DerefHLPlus;
     DEC_HL      = 0x2B, "DEC", HL;
     INC_L       = 0x2C, "INC", L;
     DEC_L       = 0x2D, "DEC", L;
+    LD_L_IMM8   = 0x2E, "LD", L, Imm8;
 
-    LD_SP_IMM16 = 0x31, "LD", SP, A;
+    LD_SP_IMM16 = 0x31, "LD", SP, Imm16;
     LDD_HL_A    = 0x32, "LD", DerefHLMinus, A;
     INC_SP      = 0x33, "INC", SP;
     LD_DHL_IMM8 = 0x36, "LD", DerefHL, Imm8;
@@ -167,8 +178,8 @@ impl Operand {
     }
 
     pub fn is_mem(self) -> bool {
-        matches!(self, Operand::Imm8 | Operand::Imm16 | Operand::DerefHL | Operand::DerefHLPlus |
-            Operand::DerefHLMinus | Operand::Addr)
+        matches!(self, Operand::Imm8 | Operand::Imm16 | Operand::DerefHL | Operand::DerefBC | Operand::DerefDE |
+            Operand::DerefHLPlus | Operand::DerefHLMinus | Operand::Addr)
     }
 }
 
@@ -180,9 +191,11 @@ impl fmt::Display for Operand {
             Operand::BC => "BC",
             Operand::B => "B",
             Operand::C => "C",
+            Operand::DerefBC => "[BC]",
             Operand::DE => "DE",
             Operand::D => "D",
             Operand::E => "E",
+            Operand::DerefDE => "[DE]",
             Operand::HL => "HL",
             Operand::H => "H",
             Operand::L => "L",

@@ -192,10 +192,12 @@ impl CPU {
             // 0X
             op::NOP => self.nop(bus),
             op::LD_BC_IMM16 => self.ld_word(bus, Operand::BC, Operand::Imm16),
+            op::LD_DBC_A => self.ld_byte(bus, Operand::DerefBC, Operand::A),
             op::INC_BC => self.inc_reg16(bus, Operand::BC),
             op::INC_B => self.inc_reg8(bus, Operand::B),
             op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
+            op::LD_A_DBC => self.ld_byte(bus, Operand::A, Operand::DerefBC),
             op::DEC_BC => self.dec_reg16(bus, Operand::BC),
             op::INC_C => self.inc_reg8(bus, Operand::C),
             op::DEC_C => self.dec_reg8(bus, Operand::C),
@@ -203,12 +205,16 @@ impl CPU {
 
             // 1X
             op::LD_DE_IMM16 => self.ld_word(bus, Operand::DE, Operand::Imm16),
+            op::LD_DDE_A => self.ld_byte(bus, Operand::DerefDE, Operand::A),
             op::INC_DE => self.inc_reg16(bus, Operand::DE),
             op::INC_D => self.inc_reg8(bus, Operand::D),
             op::DEC_D => self.dec_reg8(bus, Operand::D),
+            op::LD_D_IMM8 => self.ld_byte(bus, Operand::D, Operand::Imm8),
+            op::LD_A_DDE => self.ld_byte(bus, Operand::A, Operand::DerefDE),
             op::DEC_DE => self.dec_reg16(bus, Operand::DE),
             op::INC_E => self.inc_reg8(bus, Operand::E),
             op::DEC_E => self.dec_reg8(bus, Operand::E),
+            op::LD_E_IMM8 => self.ld_byte(bus, Operand::E, Operand::Imm8),
 
             // 2X
             op::JR_NZ_IMM8 => self.jr(bus, |s| !s.is_set(flag::Z)),
@@ -217,11 +223,13 @@ impl CPU {
             op::INC_HL => self.inc_reg16(bus, Operand::HL),
             op::INC_H => self.inc_reg8(bus, Operand::H),
             op::DEC_H => self.dec_reg8(bus, Operand::H),
+            op::LD_H_IMM8 => self.ld_byte(bus, Operand::H, Operand::Imm8),
             op::LDI_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLPlus),
             op::DEC_HL => self.dec_reg16(bus, Operand::HL),
             op::LD_SP_IMM16 => self.ld_word(bus, Operand::SP, Operand::Imm16),
             op::INC_L => self.inc_reg8(bus, Operand::L),
             op::DEC_L => self.dec_reg8(bus, Operand::L),
+            op::LD_L_IMM8 => self.ld_byte(bus, Operand::L, Operand::Imm8),
 
             // 3X
             op::LDD_HL_A => self.ld_byte(bus, Operand::DerefHLMinus, Operand::A),
@@ -357,6 +365,8 @@ impl CPU {
     fn load_mem(&mut self, bus: &mut impl Bus, src: Operand) -> u8 {
         match src {
             Operand::Imm8 => self.load_pc(bus),
+            Operand::DerefBC => bus.read(self.bc()),
+            Operand::DerefDE => bus.read(self.de()),
             Operand::DerefHL => bus.read(self.hl()),
             Operand::DerefHLPlus => {
                 let addr = self.hl();
@@ -374,6 +384,8 @@ impl CPU {
 
     fn store_mem(&mut self, bus: &mut impl Bus, dst: Operand, byte: u8) {
         match dst {
+            Operand::DerefBC => bus.write(self.bc(), byte),
+            Operand::DerefDE => bus.write(self.de(), byte),
             Operand::DerefHL => bus.write(self.hl(), byte),
             Operand::DerefHLPlus => {
                 bus.write(self.hl(), byte);
@@ -933,6 +945,16 @@ mod tests {
             given { b: 0, f: flag::Z.into() }
             cycles [R(0x0100, op::DEC_B)]
             expect { pc: 0x101, b: 0xFF, f: (flag::N | flag::H).into() }
+
+        ld_a_dbc:
+            given { bc: 0x2030 }
+            cycles [R(0x100, op::LD_A_DBC), R(0x2030, 42)]
+            expect { pc: 0x101, a: 42 }
+
+        ld_dde_a:
+            given { a: 42, de: 0x11AA }
+            cycles [R(0x100, op::LD_DDE_A), W(0x11AA, 42)]
+            expect { pc: 0x101 }
 
         jr_nz_imm8_skip:
             given { f: flag::Z.into() }
