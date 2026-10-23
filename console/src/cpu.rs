@@ -294,6 +294,16 @@ impl CPU {
             // AX
             op::XOR_AA => self.xor(bus, Operand::A),
 
+            // BX
+            op::OR_A_B => self.or(bus, Operand::B),
+            op::OR_A_C => self.or(bus, Operand::C),
+            op::OR_A_D => self.or(bus, Operand::D),
+            op::OR_A_E => self.or(bus, Operand::E),
+            op::OR_A_H => self.or(bus, Operand::H),
+            op::OR_A_L => self.or(bus, Operand::L),
+            op::OR_A_DHL => self.or(bus, Operand::DerefHL),
+            op::OR_A_A => self.or(bus, Operand::A),
+
             // CX
             op::JP => self.jp(bus),
             op::CALL_IMM16 => self.call_imm16(bus),
@@ -307,6 +317,7 @@ impl CPU {
             op::LDH_A_IMM8 => self.ldh_12(bus, Operand::A, Operand::Imm8),
             op::LDH_A_C => self.ldh_8(bus, Operand::A, Operand::C),
             op::DI => self.di(bus),
+            op::OR_A_IMM8 => self.or(bus, Operand::Imm8),
             op::LD_A_ADDR => self.ld_deref_imm16(bus, false),
             op::EI => self.ei(bus),
             op::CP_A_IMM8 => self.cp(bus, Operand::A, Operand::Imm8),
@@ -497,6 +508,7 @@ impl CPU {
         ExecState::Done
     }
 
+    // Result is always stored into A
     fn xor(&mut self, _bus: &mut impl Bus, operand: Operand) -> ExecState {
         match operand {
             Operand::A => { self.z = self.a; }
@@ -508,6 +520,30 @@ impl CPU {
         self.clear_flag(flag::N);
         self.clear_flag(flag::H);
         self.clear_flag(flag::C);
+
+        ExecState::Done
+    }
+
+    // Result is always stored into A
+    fn or(&mut self, bus: &mut impl Bus, operand: Operand) -> ExecState {
+        match self.m {
+            0 => {
+                if operand.is_mem() {
+                    return ExecState::Partial;
+                } else {
+                    self.z = self.reg8(operand);
+                }
+            }
+            1 => self.z = self.load_mem(bus, operand),
+            _ => unreachable!(),
+        }
+
+        let result = self.a | self.z;
+        self.clear_flag(flag::C);
+        self.clear_flag(flag::H);
+        self.clear_flag(flag::N);
+        self.update_flag(flag::Z, result == 0);
+        self.a = result;
 
         ExecState::Done
     }
@@ -947,6 +983,16 @@ mod tests {
             given { a: 42 }
             cycles [R(0x100, op::XOR_AA)]
             expect { pc:0x101, a: 0, f: flag::Z.into() }
+
+        or_a_l:
+            given { f: flag::N.into() }
+            cycles [R(0x100, op::OR_A_L)]
+            expect { pc: 0x101, a: 0, f: flag::Z.into() }
+
+        or_a_dhl:
+            given { hl: 0x02CC, f: flag::H.into() }
+            cycles [R(0x100, op::OR_A_DHL), R(0x02CC, 42)]
+            expect { pc: 0x101, a: 42, f: 0 }
 
         jp:
             cycles [R(0x100, op::JP), R(0x101, 0xCC), R(0x102, 0xDD), Idle]

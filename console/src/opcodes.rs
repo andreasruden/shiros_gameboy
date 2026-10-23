@@ -130,6 +130,15 @@ opcodes! {
 
     XOR_AA      = 0xAF, "XOR", A, A;
 
+    OR_A_B      = 0xB0, "OR", A, B;
+    OR_A_C      = 0xB1, "OR", A, C;
+    OR_A_D      = 0xB2, "OR", A, D;
+    OR_A_E      = 0xB3, "OR", A, E;
+    OR_A_H      = 0xB4, "OR", A, H;
+    OR_A_L      = 0xB5, "OR", A, L;
+    OR_A_DHL    = 0xB6, "OR", A, DerefHL;
+    OR_A_A      = 0xB7, "OR", A, A;
+
     JP          = 0xC3, "JP", Imm16;
     CALL_IMM16  = 0xCD, "CALL", Imm16;
 
@@ -140,6 +149,7 @@ opcodes! {
     LDH_A_IMM8  = 0xF0, "LDH", A, Imm8;
     LDH_A_C     = 0xF2, "LDH", A, C;
     DI          = 0xF3, "DI";
+    OR_A_IMM8   = 0xF6, "OR", A, Imm8;
     LD_A_ADDR   = 0xFA, "LD", A, Addr;
     EI          = 0xFB, "EI";
     CP_A_IMM8   = 0xFE, "CP", A, Imm8;
