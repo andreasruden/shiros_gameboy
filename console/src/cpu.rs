@@ -300,6 +300,14 @@ impl CPU {
             op::LD_A_A => self.ld_byte(bus, Operand::A, Operand::A),
 
             // AX
+            op::AND_A_B => self.and(bus, Operand::B),
+            op::AND_A_C => self.and(bus, Operand::C),
+            op::AND_A_D => self.and(bus, Operand::D),
+            op::AND_A_E => self.and(bus, Operand::E),
+            op::AND_A_H => self.and(bus, Operand::H),
+            op::AND_A_L => self.and(bus, Operand::L),
+            op::AND_A_DHL => self.and(bus, Operand::DerefHL),
+            op::AND_A_A => self.and(bus, Operand::A),
             op::XOR_AA => self.xor(bus, Operand::A),
 
             // BX
@@ -320,6 +328,7 @@ impl CPU {
             // EX
             op::LDH_IMM8_A => self.ldh_12(bus, Operand::Imm8, Operand::A),
             op::LDH_C_A => self.ldh_8(bus, Operand::C, Operand::A),
+            op::AND_A_IMM8 => self.and(bus, Operand::Imm8),
             op::LD_ADDR_A => self.ld_deref_imm16(bus, true),
 
             // FX
@@ -517,6 +526,30 @@ impl CPU {
         self.set_reg16(reg, new_val);
 
         // No flags are updated for these decreases
+
+        ExecState::Done
+    }
+
+    // Result is always stored into A
+    fn and(&mut self, bus: &mut impl Bus, operand: Operand) -> ExecState {
+        match self.m {
+            0 => {
+                if operand.is_mem() {
+                    return ExecState::Partial;
+                }
+                self.z = self.reg8(operand);
+            },
+            1 => {
+                self.z = self.load_mem(bus, operand);
+            }
+            _ => unreachable!(),
+        }
+
+        self.a = self.a & self.z;
+        self.clear_flag(flag::C);
+        self.set_flag(flag::H);
+        self.clear_flag(flag::N);
+        self.update_flag(flag::Z, self.a == 0);
 
         ExecState::Done
     }
@@ -1023,6 +1056,11 @@ mod tests {
             cycles [R(0x100, op::LD_DHL_A), W(0xC040, 42)]
             expect { pc: 0x101 }
 
+        and_a_b:
+            given { a: 0b1010, b: 0b1_0000, f: (flag::C | flag::H).into() }
+            cycles [R(0x100, op::AND_A_B)]
+            expect { pc: 0x101, a: 0, f: (flag::Z | flag::H).into() }
+
         xor_aa:
             given { a: 42 }
             cycles [R(0x100, op::XOR_AA)]
@@ -1061,6 +1099,11 @@ mod tests {
             given { a: 42, c: 0xAA }
             cycles [R(0x100, op::LDH_C_A), W(0xFFAA, 42)]
             expect { pc: 0x101 }
+
+        and_a_imm8:
+            given { a: 0b1010 }
+            cycles [R(0x100, op::AND_A_IMM8), R(0x101, 0b111)]
+            expect { pc: 0x102, a: 0b10, f: flag::H.into() }
 
         ld_addr_a:
             given { a: 42 }
