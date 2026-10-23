@@ -125,7 +125,7 @@ impl HwRegisters {
 impl Bus for CpuBus<'_> {
     fn read(&mut self, addr: u16) -> u8 {
         match addr {
-            0x0000..=0x3FFF => match self.cartridge.as_ref() {
+            0x0000..=0x7FFF => match self.cartridge.as_ref() {
                 None => 0,
                 Some(c) => c.rom[addr as usize],
             },
