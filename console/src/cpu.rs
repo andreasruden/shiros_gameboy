@@ -233,8 +233,63 @@ impl CPU {
             op::DEC_A => self.dec_reg8(bus, Operand::A),
             op::LD_A_IMM8 => self.ld_byte(bus, Operand::A, Operand::Imm8),
 
+            // 4X
+            op::LD_B_B => self.ld_byte(bus, Operand::B, Operand::B),
+            op::LD_B_C => self.ld_byte(bus, Operand::B, Operand::C),
+            op::LD_B_D => self.ld_byte(bus, Operand::B, Operand::D),
+            op::LD_B_E => self.ld_byte(bus, Operand::B, Operand::E),
+            op::LD_B_H => self.ld_byte(bus, Operand::B, Operand::H),
+            op::LD_B_L => self.ld_byte(bus, Operand::B, Operand::L),
+            op::LD_B_A => self.ld_byte(bus, Operand::B, Operand::A),
+            op::LD_C_B => self.ld_byte(bus, Operand::C, Operand::B),
+            op::LD_C_C => self.ld_byte(bus, Operand::C, Operand::C),
+            op::LD_C_D => self.ld_byte(bus, Operand::C, Operand::D),
+            op::LD_C_E => self.ld_byte(bus, Operand::C, Operand::E),
+            op::LD_C_H => self.ld_byte(bus, Operand::C, Operand::H),
+            op::LD_C_L => self.ld_byte(bus, Operand::C, Operand::L),
+            op::LD_C_A => self.ld_byte(bus, Operand::C, Operand::A),
+
+            // 5X
+            op::LD_D_B => self.ld_byte(bus, Operand::D, Operand::B),
+            op::LD_D_C => self.ld_byte(bus, Operand::D, Operand::C),
+            op::LD_D_D => self.ld_byte(bus, Operand::D, Operand::D),
+            op::LD_D_E => self.ld_byte(bus, Operand::D, Operand::E),
+            op::LD_D_H => self.ld_byte(bus, Operand::D, Operand::H),
+            op::LD_D_L => self.ld_byte(bus, Operand::D, Operand::L),
+            op::LD_D_A => self.ld_byte(bus, Operand::D, Operand::A),
+            op::LD_E_B => self.ld_byte(bus, Operand::E, Operand::B),
+            op::LD_E_C => self.ld_byte(bus, Operand::E, Operand::C),
+            op::LD_E_D => self.ld_byte(bus, Operand::E, Operand::D),
+            op::LD_E_E => self.ld_byte(bus, Operand::E, Operand::E),
+            op::LD_E_H => self.ld_byte(bus, Operand::E, Operand::H),
+            op::LD_E_L => self.ld_byte(bus, Operand::E, Operand::L),
+            op::LD_E_A => self.ld_byte(bus, Operand::E, Operand::A),
+
+            // 6X
+            op::LD_H_B => self.ld_byte(bus, Operand::H, Operand::B),
+            op::LD_H_C => self.ld_byte(bus, Operand::H, Operand::C),
+            op::LD_H_D => self.ld_byte(bus, Operand::H, Operand::D),
+            op::LD_H_E => self.ld_byte(bus, Operand::H, Operand::E),
+            op::LD_H_H => self.ld_byte(bus, Operand::H, Operand::H),
+            op::LD_H_L => self.ld_byte(bus, Operand::H, Operand::L),
+            op::LD_H_A => self.ld_byte(bus, Operand::H, Operand::A),
+            op::LD_L_B => self.ld_byte(bus, Operand::L, Operand::B),
+            op::LD_L_C => self.ld_byte(bus, Operand::L, Operand::C),
+            op::LD_L_D => self.ld_byte(bus, Operand::L, Operand::D),
+            op::LD_L_E => self.ld_byte(bus, Operand::L, Operand::E),
+            op::LD_L_H => self.ld_byte(bus, Operand::L, Operand::H),
+            op::LD_L_L => self.ld_byte(bus, Operand::L, Operand::L),
+            op::LD_L_A => self.ld_byte(bus, Operand::L, Operand::A),
+
             // 7X
             op::LD_DHL_A => self.ld_byte(bus, Operand::DerefHL, Operand::A),
+            op::LD_A_B => self.ld_byte(bus, Operand::A, Operand::B),
+            op::LD_A_C => self.ld_byte(bus, Operand::A, Operand::C),
+            op::LD_A_D => self.ld_byte(bus, Operand::A, Operand::D),
+            op::LD_A_E => self.ld_byte(bus, Operand::A, Operand::E),
+            op::LD_A_H => self.ld_byte(bus, Operand::A, Operand::H),
+            op::LD_A_L => self.ld_byte(bus, Operand::A, Operand::L),
+            op::LD_A_A => self.ld_byte(bus, Operand::A, Operand::A),
 
             // AX
             op::XOR_AA => self.xor(bus, Operand::A),
@@ -877,6 +932,11 @@ mod tests {
         ld_a_imm8:
             cycles [R(0x100, op::LD_A_IMM8), R(0x101, 42)]
             expect { pc: 0x102, a: 42 }
+
+        ld_b_c:
+            given { c: 42 }
+            cycles [R(0x100, op::LD_B_C)]
+            expect { pc: 0x101, b: 42 }
 
         ld_dhl_a:
             given { hl: 0xC040, a: 42 }

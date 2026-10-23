@@ -74,7 +74,59 @@ opcodes! {
     DEC_A       = 0x3D, "DEC", A;
     LD_A_IMM8   = 0x3E, "LD", A, Imm8;
 
+    LD_B_B      = 0x40, "LD", B, B;
+    LD_B_C      = 0x41, "LD", B, C;
+    LD_B_D      = 0x42, "LD", B, D;
+    LD_B_E      = 0x43, "LD", B, E;
+    LD_B_H      = 0x44, "LD", B, H;
+    LD_B_L      = 0x45, "LD", B, L;
+    LD_B_A      = 0x47, "LD", B, A;
+    LD_C_B      = 0x48, "LD", C, B;
+    LD_C_C      = 0x49, "LD", C, C;
+    LD_C_D      = 0x4A, "LD", C, D;
+    LD_C_E      = 0x4B, "LD", C, E;
+    LD_C_H      = 0x4C, "LD", C, H;
+    LD_C_L      = 0x4D, "LD", C, L;
+    LD_C_A      = 0x4F, "LD", C, A;
+
+    LD_D_B      = 0x50, "LD", D, B;
+    LD_D_C      = 0x51, "LD", D, C;
+    LD_D_D      = 0x52, "LD", D, D;
+    LD_D_E      = 0x53, "LD", D, E;
+    LD_D_H      = 0x54, "LD", D, H;
+    LD_D_L      = 0x55, "LD", D, L;
+    LD_D_A      = 0x57, "LD", D, A;
+    LD_E_B      = 0x58, "LD", E, B;
+    LD_E_C      = 0x59, "LD", E, C;
+    LD_E_D      = 0x5A, "LD", E, D;
+    LD_E_E      = 0x5B, "LD", E, E;
+    LD_E_H      = 0x5C, "LD", E, H;
+    LD_E_L      = 0x5D, "LD", E, L;
+    LD_E_A      = 0x5F, "LD", E, A;
+
+    LD_H_B      = 0x60, "LD", H, B;
+    LD_H_C      = 0x61, "LD", H, C;
+    LD_H_D      = 0x62, "LD", H, D;
+    LD_H_E      = 0x63, "LD", H, E;
+    LD_H_H      = 0x64, "LD", H, H;
+    LD_H_L      = 0x65, "LD", H, L;
+    LD_H_A      = 0x67, "LD", H, A;
+    LD_L_B      = 0x68, "LD", L, B;
+    LD_L_C      = 0x69, "LD", L, C;
+    LD_L_D      = 0x6A, "LD", L, D;
+    LD_L_E      = 0x6B, "LD", L, E;
+    LD_L_H      = 0x6C, "LD", L, H;
+    LD_L_L      = 0x6D, "LD", L, L;
+    LD_L_A      = 0x6F, "LD", L, A;
+
     LD_DHL_A    = 0x77, "LD", DerefHL, A;
+    LD_A_B      = 0x78, "LD", A, B;
+    LD_A_C      = 0x79, "LD", A, C;
+    LD_A_D      = 0x7A, "LD", A, D;
+    LD_A_E      = 0x7B, "LD", A, E;
+    LD_A_H      = 0x7C, "LD", A, H;
+    LD_A_L      = 0x7D, "LD", A, L;
+    LD_A_A      = 0x7F, "LD", A, A;
 
     XOR_AA      = 0xAF, "XOR", A, A;
 
