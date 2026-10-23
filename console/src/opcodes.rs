@@ -56,6 +56,7 @@ opcodes! {
     INC_D       = 0x14, "INC", D;
     DEC_D       = 0x15, "DEC", D;
     LD_D_IMM8   = 0x16, "LD", D, Imm8;
+    JR_IMM8     = 0x18, "JR", Imm8;
     LD_A_DDE    = 0x1A, "LD", A, DerefDE;
     DEC_DE      = 0x1B, "DEC", DE;
     INC_E       = 0x1C, "INC", E;
@@ -69,16 +70,19 @@ opcodes! {
     INC_H       = 0x24, "INC", H;
     DEC_H       = 0x25, "DEC", H;
     LD_H_IMM8   = 0x26, "LD", H, Imm8;
+    JR_Z_IMM8   = 0x28, "JR Z,", Imm8;
     LDI_A_HL    = 0x2A, "LD", A, DerefHLPlus;
     DEC_HL      = 0x2B, "DEC", HL;
     INC_L       = 0x2C, "INC", L;
     DEC_L       = 0x2D, "DEC", L;
     LD_L_IMM8   = 0x2E, "LD", L, Imm8;
 
+    JR_NC_IMM8  = 0x30, "JR NC,", Imm8;
     LD_SP_IMM16 = 0x31, "LD", SP, Imm16;
     LDD_HL_A    = 0x32, "LD", DerefHLMinus, A;
     INC_SP      = 0x33, "INC", SP;
     LD_DHL_IMM8 = 0x36, "LD", DerefHL, Imm8;
+    JR_C_IMM8   = 0x38, "JR C,", Imm8;
     LDD_A_HL    = 0x3A, "LD", A, DerefHLMinus;
     DEC_SP      = 0x3B, "DEC", SP;
     INC_A       = 0x3C, "INC", A;
