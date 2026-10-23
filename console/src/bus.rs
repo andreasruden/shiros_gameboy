@@ -1,4 +1,4 @@
-use crate::{Cartridge, lcd::LCD};
+use crate::{Cartridge, apu::APU, lcd::LCD};
 
 pub struct HwRegisters {
     pub i_f: u8,            // $FF04 interrupt flag
@@ -8,11 +8,6 @@ pub struct HwRegisters {
     // Timer
     pub timer_tma: u8,      // $FF06 timer modulo
     pub timer_tac: u8,      // $FF07 timer control
-
-    // Audio
-    pub audio_nr50: u8,     // $FF26: master volume & VIN panning
-    pub audio_nr51: u8,     // $FF25: panning
-    pub audio_nr52: u8,     // $FF26: on/off
 
     // LCD registers
     pub lcd_ctrl: u8,       // $FF40 lcd control flags
@@ -35,6 +30,7 @@ pub trait Bus {
 
 pub struct CpuBus<'a> {
     pub cartridge: &'a mut Option<Cartridge>,
+    pub apu: &'a mut APU,
     pub vram: &'a mut [u8; 0x2000],
     pub wram: &'a mut [u8; 0x2000],
     pub oam: &'a mut [u8; 160],
@@ -56,9 +52,6 @@ impl HwRegisters {
             serial_2: 0,
             timer_tma: 0,
             timer_tac: 0,
-            audio_nr50: 0,
-            audio_nr51: 0,
-            audio_nr52: 0,
             lcd_ctrl: 0,
             lcd_stat: 0,
             lcd_scy: 0,
@@ -79,9 +72,6 @@ impl HwRegisters {
             0xFF02 => self.serial_2,
             0xFF06 => self.timer_tma,
             0xFF07 => self.timer_tac,
-            0xFF24 => self.audio_nr50,
-            0xFF25 => self.audio_nr51,
-            0xFF26 => self.audio_nr52,
             0xFF40 => self.lcd_ctrl,
             0xFF41 => self.lcd_stat,
             0xFF42 => self.lcd_scy,
@@ -103,9 +93,6 @@ impl HwRegisters {
             0xFF02 => self.serial_2 = val,
             0xFF06 => self.timer_tma = val,
             0xFF07 => self.timer_tac = val,
-            0xFF24 => self.audio_nr50 = val,
-            0xFF25 => self.audio_nr51 = val,
-            0xFF26 => self.audio_nr52 = val,
             0xFF40 => self.lcd_ctrl = val,
             0xFF41 => self.lcd_stat = val,
             0xFF42 => self.lcd_scy = val,
@@ -131,6 +118,7 @@ impl Bus for CpuBus<'_> {
             },
             0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize],
             0x8000..=0x9FFF => self.vram[(addr - 0x8000) as usize],
+            0xFF10..=0xFF3F => self.apu.read(addr),
             0xFF00..=0xFF7F => self.hw_reg.get(addr),
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize],
             0xFFFF => self.hw_reg.get(addr),
@@ -151,6 +139,7 @@ impl Bus for CpuBus<'_> {
                 }
             },
             0xFEA0..=0xFEFF => { /* writes to not usable section is just ignored */},
+            0xFF10..=0xFF3F => self.apu.write(addr, byte),
             0xFF00..=0xFF7F => self.hw_reg.set(addr, byte),
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize] = byte,
             0xFFFF => self.hw_reg.set(addr, byte),

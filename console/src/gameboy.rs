@@ -1,5 +1,6 @@
 // The main struct for the GameBoy, owns the components
 
+use crate::apu::APU;
 use crate::bus::{CpuBus, HwRegisters, PpuBus};
 use crate::clock::Clock;
 use crate::cpu::CPU;
@@ -12,6 +13,7 @@ pub struct GameBoy {
     pub cpu: CPU,
     pub ppu: PPU,
     pub lcd: LCD,
+    pub apu: APU,
     pub cartridge: Option<Cartridge>,
     pub vram: [u8; 0x2000],
     pub wram: [u8; 0x2000],
@@ -40,6 +42,7 @@ impl GameBoy {
             cpu: CPU::new(),
             ppu: PPU::new(),
             lcd: LCD::new(lcd_producer),
+            apu: APU::new(),
             cartridge: None,
             vram: [0; 0x2000],
             wram: [0; 0x2000],
@@ -58,6 +61,7 @@ impl GameBoy {
     fn cpu_and_bus(&mut self) -> (&mut CPU, CpuBus<'_>) {
         let bus = CpuBus {
             cartridge: &mut self.cartridge,
+            apu: &mut self.apu,
             vram: &mut self.vram,
             wram: &mut self.wram,
             oam: &mut self.oam,
