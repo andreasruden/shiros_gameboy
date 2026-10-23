@@ -231,6 +231,7 @@ impl CPU {
             op::INC_L => self.inc_reg8(bus, Operand::L),
             op::DEC_L => self.dec_reg8(bus, Operand::L),
             op::LD_L_IMM8 => self.ld_byte(bus, Operand::L, Operand::Imm8),
+            op::CPL => self.cpl(bus),
 
             // 3X
             op::JR_NC_IMM8 => self.jr(bus, |s| !s.is_set(flag::C)),
@@ -601,6 +602,13 @@ impl CPU {
         self.update_flag(flag::Z, result == 0);
         self.a = result;
 
+        ExecState::Done
+    }
+
+    fn cpl(&mut self, _bus: &mut impl Bus) -> ExecState {
+        self.a = !self.a;
+        self.set_flag(flag::H);
+        self.set_flag(flag::N);
         ExecState::Done
     }
 
@@ -1044,6 +1052,11 @@ mod tests {
             given  { hl: 0xC000, a: 42 }
             cycles [R(0x0100, op::LDI_HL_A), W(0xC000, 42)]
             expect { pc: 0x0101, a: 42, hl: 0xC001 }
+
+        cpl:
+            given { a: 0b1010 }
+            cycles [R(0x100, op::CPL)]
+            expect { pc: 0x101, a: 0b11110101, f: (flag::H | flag::N).into() }
 
         ld_dhl_imm8:
             given { hl: 0xC000 }

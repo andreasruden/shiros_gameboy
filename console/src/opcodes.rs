@@ -76,6 +76,7 @@ opcodes! {
     INC_L       = 0x2C, "INC", L;
     DEC_L       = 0x2D, "DEC", L;
     LD_L_IMM8   = 0x2E, "LD", L, Imm8;
+    CPL         = 0x2F, "CPL";
 
     JR_NC_IMM8  = 0x30, "JR NC,", Imm8;
     LD_SP_IMM16 = 0x31, "LD", SP, Imm16;
