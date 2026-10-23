@@ -140,6 +140,7 @@ opcodes! {
     OR_A_A      = 0xB7, "OR", A, A;
 
     JP          = 0xC3, "JP", Imm16;
+    RET         = 0xC9, "RET";
     CALL_IMM16  = 0xCD, "CALL", Imm16;
 
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;

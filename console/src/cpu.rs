@@ -306,6 +306,7 @@ impl CPU {
 
             // CX
             op::JP => self.jp(bus),
+            op::RET => self.ret(bus),
             op::CALL_IMM16 => self.call_imm16(bus),
 
             // EX
@@ -564,6 +565,27 @@ impl CPU {
                 self.pc = u16::from_le_bytes([self.z, self.w]);
                 ExecState::Done
             },
+            _ => unreachable!(),
+        }
+    }
+
+    fn ret(&mut self, bus: &mut impl Bus) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => {
+                self.z = bus.read(self.sp());
+                self.set_sp(self.sp() + 1);
+                ExecState::Partial
+            },
+            2 => {
+                self.w = bus.read(self.sp());
+                self.set_sp(self.sp() + 1);
+                ExecState::Partial
+            },
+            3 => {
+                self.set_pc(u16::from_le_bytes([self.z, self.w]));
+                ExecState::Done
+            }
             _ => unreachable!(),
         }
     }
@@ -997,6 +1019,11 @@ mod tests {
         jp:
             cycles [R(0x100, op::JP), R(0x101, 0xCC), R(0x102, 0xDD), Idle]
             expect { pc: 0xDDCC }
+
+        ret:
+            given { sp: 0xFFE0 }
+            cycles [R(0x100, op::RET), R(0xFFE0, 0x11), R(0xFFE1, 0xAA), Idle]
+            expect { pc: 0xAA11, sp: 0xFFE2 }
 
         call_imm16:
             given { sp: 0xFFF4 }
