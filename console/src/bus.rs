@@ -1,6 +1,7 @@
 use crate::{Cartridge, apu::APU, lcd::LCD};
 
 pub struct HwRegisters {
+    pub joypad: u8,         // $FF00
     pub i_f: u8,            // $FF04 interrupt flag
     pub serial_1: u8,       // $FF01
     pub serial_2: u8,       // $FF02
@@ -50,6 +51,7 @@ pub struct PpuBus<'a> {
 impl HwRegisters {
     pub fn new() -> Self {
         HwRegisters {
+            joypad: 0,
             i_f: 0,
             serial_1: 0,
             serial_2: 0,
@@ -72,6 +74,7 @@ impl HwRegisters {
 
     pub fn get(&mut self, addr: u16) -> u8 {
         match addr {
+            0xFF00 => self.joypad,
             0xFF0F => self.i_f,
             0xFF01 => self.serial_1,
             0xFF02 => self.serial_2,
@@ -95,6 +98,7 @@ impl HwRegisters {
 
     pub fn set(&mut self, addr: u16, val: u8) {
         match addr {
+            0xFF00 => self.joypad = val,
             0xFF0F => self.i_f = val,
             0xFF01 => self.serial_1 = val,
             0xFF02 => self.serial_2 = val,
