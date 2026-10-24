@@ -152,7 +152,14 @@ opcodes! {
     AND_A_L     = 0xA5, "AND", A, L;
     AND_A_DHL   = 0xA6, "AND", A, DerefHL;
     AND_A_A     = 0xA7, "AND", A, A;
-    XOR_AA      = 0xAF, "XOR", A, A;
+    XOR_A_B     = 0xA8, "XOR", A, B;
+    XOR_A_C     = 0xA9, "XOR", A, C;
+    XOR_A_D     = 0xAA, "XOR", A, D;
+    XOR_A_E     = 0xAB, "XOR", A, E;
+    XOR_A_H     = 0xAC, "XOR", A, H;
+    XOR_A_L     = 0xAD, "XOR", A, L;
+    XOR_A_DHL   = 0xAE, "XOR", A, DerefHL;
+    XOR_A_A     = 0xAF, "XOR", A, A;
 
     OR_A_B      = 0xB0, "OR", A, B;
     OR_A_C      = 0xB1, "OR", A, C;
@@ -177,6 +184,7 @@ opcodes! {
     LDH_C_A     = 0xE2, "LDH", C, A;
     AND_A_IMM8  = 0xE6, "AND", A, Imm8;
     LD_ADDR_A   = 0xEA, "LD", Addr, A;
+    XOR_A_IMM8  = 0xEE, "XOR", A, Imm8;
 
     LDH_A_IMM8  = 0xF0, "LDH", A, Imm8;
     LDH_A_C     = 0xF2, "LDH", A, C;

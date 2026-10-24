@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn instruction_with_hardcoded_operands() {
-        let code = [op::XOR_AA as u8];
+        let code = [op::XOR_A_A as u8];
         let pc: u16 = 0;
         let (s, new_pc) = disassemble_next(&code, pc);
         assert_eq!(new_pc, 1);

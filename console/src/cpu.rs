@@ -313,7 +313,14 @@ impl CPU {
             op::AND_A_L => self.and(bus, Operand::L),
             op::AND_A_DHL => self.and(bus, Operand::DerefHL),
             op::AND_A_A => self.and(bus, Operand::A),
-            op::XOR_AA => self.xor(bus, Operand::A),
+            op::XOR_A_B => self.xor(bus, Operand::B),
+            op::XOR_A_C => self.xor(bus, Operand::C),
+            op::XOR_A_D => self.xor(bus, Operand::D),
+            op::XOR_A_E => self.xor(bus, Operand::E),
+            op::XOR_A_H => self.xor(bus, Operand::H),
+            op::XOR_A_L => self.xor(bus, Operand::L),
+            op::XOR_A_DHL => self.xor(bus, Operand::DerefHL),
+            op::XOR_A_A => self.xor(bus, Operand::A),
 
             // BX
             op::OR_A_B => self.or(bus, Operand::B),
@@ -342,6 +349,7 @@ impl CPU {
             op::LDH_C_A => self.ldh_8(bus, Operand::C, Operand::A),
             op::AND_A_IMM8 => self.and(bus, Operand::Imm8),
             op::LD_ADDR_A => self.ld_deref_imm16(bus, true),
+            op::XOR_A_IMM8 => self.xor(bus, Operand::Imm8),
 
             // FX
             op::LDH_A_IMM8 => self.ldh_12(bus, Operand::A, Operand::Imm8),
@@ -567,14 +575,21 @@ impl CPU {
     }
 
     // Result is always stored into A
-    fn xor(&mut self, _bus: &mut impl Bus, operand: Operand) -> ExecState {
-        match operand {
-            Operand::A => { self.z = self.a; }
-            _ => todo!(),
+    fn xor(&mut self, bus: &mut impl Bus, operand: Operand) -> ExecState {
+        match self.m {
+            0 => {
+                if operand.is_mem() {
+                    return ExecState::Partial;
+                } else {
+                    self.z = self.reg8(operand);
+                }
+            },
+            1 => self.z = self.load_mem(bus, operand),
+            _ => unreachable!(),
         };
 
         self.a = self.a ^ self.z;
-        self.set_flag(flag::Z);
+        self.update_flag(flag::Z, self.a == 0);
         self.clear_flag(flag::N);
         self.clear_flag(flag::H);
         self.clear_flag(flag::C);
@@ -1198,9 +1213,14 @@ mod tests {
             cycles [R(0x100, op::AND_A_B)]
             expect { pc: 0x101, a: 0, f: (flag::Z | flag::H).into() }
 
-        xor_aa:
+        xor_a_dhl:
+            given { a: 0b1010, hl: 0x8080 }
+            cycles [R(0x100, op::XOR_A_DHL), R(0x8080, 0b1101)]
+            expect { pc:0x101, a: 0b0111 }
+
+        xor_a_a:
             given { a: 42 }
-            cycles [R(0x100, op::XOR_AA)]
+            cycles [R(0x100, op::XOR_A_A)]
             expect { pc:0x101, a: 0, f: flag::Z.into() }
 
         or_a_l:
