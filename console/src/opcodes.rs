@@ -9,7 +9,7 @@ pub enum Operand {
     DerefBC, DerefDE, DerefHL, DerefHLPlus, DerefHLMinus,
 
     // Immediates
-    Imm8, Imm16, Addr
+    Imm8, Imm16, Addr,
 }
 
 macro_rules! opcodes {
@@ -44,6 +44,7 @@ opcodes! {
     INC_B       = 0x04, "INC", B;
     DEC_B       = 0x05, "DEC", B;
     LD_B_IMM8   = 0x06, "LD", B, Imm8;
+    LD_ADDR_SP  = 0x08, "LD", Addr, SP;
     LD_A_DBC    = 0x0A, "LD", A, DerefBC;
     DEC_BC      = 0x0B, "DEC", BC;
     INC_C       = 0x0C, "INC", C;
@@ -96,6 +97,7 @@ opcodes! {
     LD_B_E      = 0x43, "LD", B, E;
     LD_B_H      = 0x44, "LD", B, H;
     LD_B_L      = 0x45, "LD", B, L;
+    LD_B_DHL    = 0x46, "LD", B, DerefHL;
     LD_B_A      = 0x47, "LD", B, A;
     LD_C_B      = 0x48, "LD", C, B;
     LD_C_C      = 0x49, "LD", C, C;
@@ -103,6 +105,7 @@ opcodes! {
     LD_C_E      = 0x4B, "LD", C, E;
     LD_C_H      = 0x4C, "LD", C, H;
     LD_C_L      = 0x4D, "LD", C, L;
+    LD_C_DHL    = 0x4E, "LD", C, DerefHL;
     LD_C_A      = 0x4F, "LD", C, A;
 
     LD_D_B      = 0x50, "LD", D, B;
@@ -111,6 +114,7 @@ opcodes! {
     LD_D_E      = 0x53, "LD", D, E;
     LD_D_H      = 0x54, "LD", D, H;
     LD_D_L      = 0x55, "LD", D, L;
+    LD_D_DHL    = 0x56, "LD", D, DerefHL;
     LD_D_A      = 0x57, "LD", D, A;
     LD_E_B      = 0x58, "LD", E, B;
     LD_E_C      = 0x59, "LD", E, C;
@@ -118,6 +122,7 @@ opcodes! {
     LD_E_E      = 0x5B, "LD", E, E;
     LD_E_H      = 0x5C, "LD", E, H;
     LD_E_L      = 0x5D, "LD", E, L;
+    LD_E_DHL    = 0x5E, "LD", E, DerefHL;
     LD_E_A      = 0x5F, "LD", E, A;
 
     LD_H_B      = 0x60, "LD", H, B;
@@ -126,6 +131,7 @@ opcodes! {
     LD_H_E      = 0x63, "LD", H, E;
     LD_H_H      = 0x64, "LD", H, H;
     LD_H_L      = 0x65, "LD", H, L;
+    LD_H_DHL    = 0x66, "LD", H, DerefHL;
     LD_H_A      = 0x67, "LD", H, A;
     LD_L_B      = 0x68, "LD", L, B;
     LD_L_C      = 0x69, "LD", L, C;
@@ -133,8 +139,15 @@ opcodes! {
     LD_L_E      = 0x6B, "LD", L, E;
     LD_L_H      = 0x6C, "LD", L, H;
     LD_L_L      = 0x6D, "LD", L, L;
+    LD_L_DHL    = 0x6E, "LD", L, DerefHL;
     LD_L_A      = 0x6F, "LD", L, A;
 
+    LD_DHL_B    = 0x70, "LD", DerefHL, B;
+    LD_DHL_C    = 0x71, "LD", DerefHL, C;
+    LD_DHL_D    = 0x72, "LD", DerefHL, D;
+    LD_DHL_E    = 0x73, "LD", DerefHL, E;
+    LD_DHL_H    = 0x74, "LD", DerefHL, H;
+    LD_DHL_L    = 0x75, "LD", DerefHL, L;
     LD_DHL_A    = 0x77, "LD", DerefHL, A;
     LD_A_B      = 0x78, "LD", A, B;
     LD_A_C      = 0x79, "LD", A, C;
@@ -142,6 +155,7 @@ opcodes! {
     LD_A_E      = 0x7B, "LD", A, E;
     LD_A_H      = 0x7C, "LD", A, H;
     LD_A_L      = 0x7D, "LD", A, L;
+    LD_A_DHL    = 0x7E, "LD", A, DerefHL;
     LD_A_A      = 0x7F, "LD", A, A;
 
     AND_A_B     = 0xA0, "AND", A, B;
@@ -190,6 +204,7 @@ opcodes! {
     LDH_A_C     = 0xF2, "LDH", A, C;
     DI          = 0xF3, "DI";
     OR_A_IMM8   = 0xF6, "OR", A, Imm8;
+    LD_SP_HL    = 0xF9, "LD", SP, HL;
     LD_A_ADDR   = 0xFA, "LD", A, Addr;
     EI          = 0xFB, "EI";
     CP_A_IMM8   = 0xFE, "CP", A, Imm8;

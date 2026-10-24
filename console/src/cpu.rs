@@ -197,6 +197,7 @@ impl CPU {
             op::INC_B => self.inc_reg8(bus, Operand::B),
             op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
+            op::LD_ADDR_SP => self.ld_addr_sp(bus),
             op::LD_A_DBC => self.ld_byte(bus, Operand::A, Operand::DerefBC),
             op::DEC_BC => self.dec_reg16(bus, Operand::BC),
             op::INC_C => self.inc_reg8(bus, Operand::C),
@@ -253,6 +254,7 @@ impl CPU {
             op::LD_B_E => self.ld_byte(bus, Operand::B, Operand::E),
             op::LD_B_H => self.ld_byte(bus, Operand::B, Operand::H),
             op::LD_B_L => self.ld_byte(bus, Operand::B, Operand::L),
+            op::LD_B_DHL => self.ld_byte(bus, Operand::B, Operand::DerefHL),
             op::LD_B_A => self.ld_byte(bus, Operand::B, Operand::A),
             op::LD_C_B => self.ld_byte(bus, Operand::C, Operand::B),
             op::LD_C_C => self.ld_byte(bus, Operand::C, Operand::C),
@@ -260,6 +262,7 @@ impl CPU {
             op::LD_C_E => self.ld_byte(bus, Operand::C, Operand::E),
             op::LD_C_H => self.ld_byte(bus, Operand::C, Operand::H),
             op::LD_C_L => self.ld_byte(bus, Operand::C, Operand::L),
+            op::LD_C_DHL => self.ld_byte(bus, Operand::C, Operand::DerefHL),
             op::LD_C_A => self.ld_byte(bus, Operand::C, Operand::A),
 
             // 5X
@@ -269,6 +272,7 @@ impl CPU {
             op::LD_D_E => self.ld_byte(bus, Operand::D, Operand::E),
             op::LD_D_H => self.ld_byte(bus, Operand::D, Operand::H),
             op::LD_D_L => self.ld_byte(bus, Operand::D, Operand::L),
+            op::LD_D_DHL => self.ld_byte(bus, Operand::D, Operand::DerefHL),
             op::LD_D_A => self.ld_byte(bus, Operand::D, Operand::A),
             op::LD_E_B => self.ld_byte(bus, Operand::E, Operand::B),
             op::LD_E_C => self.ld_byte(bus, Operand::E, Operand::C),
@@ -276,6 +280,7 @@ impl CPU {
             op::LD_E_E => self.ld_byte(bus, Operand::E, Operand::E),
             op::LD_E_H => self.ld_byte(bus, Operand::E, Operand::H),
             op::LD_E_L => self.ld_byte(bus, Operand::E, Operand::L),
+            op::LD_E_DHL => self.ld_byte(bus, Operand::E, Operand::DerefHL),
             op::LD_E_A => self.ld_byte(bus, Operand::E, Operand::A),
 
             // 6X
@@ -285,6 +290,7 @@ impl CPU {
             op::LD_H_E => self.ld_byte(bus, Operand::H, Operand::E),
             op::LD_H_H => self.ld_byte(bus, Operand::H, Operand::H),
             op::LD_H_L => self.ld_byte(bus, Operand::H, Operand::L),
+            op::LD_H_DHL => self.ld_byte(bus, Operand::H, Operand::DerefHL),
             op::LD_H_A => self.ld_byte(bus, Operand::H, Operand::A),
             op::LD_L_B => self.ld_byte(bus, Operand::L, Operand::B),
             op::LD_L_C => self.ld_byte(bus, Operand::L, Operand::C),
@@ -292,9 +298,16 @@ impl CPU {
             op::LD_L_E => self.ld_byte(bus, Operand::L, Operand::E),
             op::LD_L_H => self.ld_byte(bus, Operand::L, Operand::H),
             op::LD_L_L => self.ld_byte(bus, Operand::L, Operand::L),
+            op::LD_L_DHL => self.ld_byte(bus, Operand::L, Operand::DerefHL),
             op::LD_L_A => self.ld_byte(bus, Operand::L, Operand::A),
 
             // 7X
+            op::LD_DHL_B => self.ld_byte(bus, Operand::DerefHL, Operand::B),
+            op::LD_DHL_C => self.ld_byte(bus, Operand::DerefHL, Operand::C),
+            op::LD_DHL_D => self.ld_byte(bus, Operand::DerefHL, Operand::D),
+            op::LD_DHL_E => self.ld_byte(bus, Operand::DerefHL, Operand::E),
+            op::LD_DHL_H => self.ld_byte(bus, Operand::DerefHL, Operand::H),
+            op::LD_DHL_L => self.ld_byte(bus, Operand::DerefHL, Operand::L),
             op::LD_DHL_A => self.ld_byte(bus, Operand::DerefHL, Operand::A),
             op::LD_A_B => self.ld_byte(bus, Operand::A, Operand::B),
             op::LD_A_C => self.ld_byte(bus, Operand::A, Operand::C),
@@ -302,6 +315,7 @@ impl CPU {
             op::LD_A_E => self.ld_byte(bus, Operand::A, Operand::E),
             op::LD_A_H => self.ld_byte(bus, Operand::A, Operand::H),
             op::LD_A_L => self.ld_byte(bus, Operand::A, Operand::L),
+            op::LD_A_DHL => self.ld_byte(bus, Operand::A, Operand::DerefHL),
             op::LD_A_A => self.ld_byte(bus, Operand::A, Operand::A),
 
             // AX
@@ -356,6 +370,7 @@ impl CPU {
             op::LDH_A_C => self.ldh_8(bus, Operand::A, Operand::C),
             op::DI => self.di(bus),
             op::OR_A_IMM8 => self.or(bus, Operand::Imm8),
+            op::LD_SP_HL => self.ld_sp_hl(bus),
             op::LD_A_ADDR => self.ld_deref_imm16(bus, false),
             op::EI => self.ei(bus),
             op::CP_A_IMM8 => self.cp(bus, Operand::A, Operand::Imm8),
@@ -868,6 +883,33 @@ impl CPU {
         }
     }
 
+    // Implements LD [Imm16], SP
+    fn ld_addr_sp(&mut self, bus: &mut impl Bus) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => { self.z = self.load_pc(bus); ExecState::Partial },
+            2 => { self.w = self.load_pc(bus); ExecState::Partial },
+            3 => {
+                bus.write(u16::from_le_bytes([self.z, self.w]), self.sp() as u8);
+                ExecState::Partial
+            },
+            4 => {
+                bus.write(u16::from_le_bytes([self.z, self.w]) + 1, (self.sp() >> 8) as u8);
+                ExecState::Done
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    // Implements LD SP, HL
+    fn ld_sp_hl(&mut self, _bus: &mut impl Bus) -> ExecState {
+        if self.m == 0 {
+            return ExecState::Partial;
+        }
+        self.set_sp(self.hl());
+        ExecState::Done
+    }
+
     fn di(&mut self, _bus: &mut impl Bus) -> ExecState {
         self.ime = 0;
         ExecState::Done
@@ -1126,6 +1168,11 @@ mod tests {
             cycles [R(0x0100, op::DEC_B)]
             expect { pc: 0x101, b: 0xFF, f: (flag::N | flag::H).into() }
 
+        ld_addr_sp:
+            given { sp: 0xFFF0 }
+            cycles [R(0x100, op::LD_ADDR_SP), R(0x101, 0x80), R(0x102, 0x80), W(0x8080, 0xF0), W(0x8081, 0xFF)]
+            expect { pc: 0x103 }
+
         ld_a_dbc:
             given { bc: 0x2030 }
             cycles [R(0x100, op::LD_A_DBC), R(0x2030, 42)]
@@ -1288,6 +1335,11 @@ mod tests {
         ld_a_addr:
             cycles[R(0x100, op::LD_A_ADDR), R(0x101, 0xAF), R(0x102, 0xC0), R(0xC0AF, 42)]
             expect{ pc: 0x103, a: 42 }
+
+        ld_sp_hl:
+            given { hl: 42, sp: 0xFFFA }
+            cycles [R(0x100, op::LD_SP_HL), Idle]
+            expect { pc: 0x101, sp: 42 }
 
         ei_1:
             given { ime: false as u16 }
