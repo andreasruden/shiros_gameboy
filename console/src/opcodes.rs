@@ -186,28 +186,36 @@ opcodes! {
 
     RET_NZ      = 0xC0, "RET NZ";
     JP          = 0xC3, "JP", Imm16;
+    RST_00      = 0xC7, "RST $00";
     RET_Z       = 0xC8, "RET Z";
     RET         = 0xC9, "RET";
     PREFIX      = 0xCB, "PREFIX";
     CALL_IMM16  = 0xCD, "CALL", Imm16;
+    RST_08      = 0xCF, "RST $08";
 
     RET_NC      = 0xD0, "RET NC";
+    RST_10      = 0xD7, "RST $10";
     RET_C       = 0xD8, "RET C";
+    RST_18      = 0xDF, "RST $18";
 
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
     LDH_C_A     = 0xE2, "LDH", C, A;
     AND_A_IMM8  = 0xE6, "AND", A, Imm8;
+    RST_20      = 0xE7, "RST $20";
     LD_ADDR_A   = 0xEA, "LD", Addr, A;
     XOR_A_IMM8  = 0xEE, "XOR", A, Imm8;
+    RST_28      = 0xEF, "RST $28";
 
     LDH_A_IMM8  = 0xF0, "LDH", A, Imm8;
     LDH_A_C     = 0xF2, "LDH", A, C;
     DI          = 0xF3, "DI";
     OR_A_IMM8   = 0xF6, "OR", A, Imm8;
+    RST_30      = 0xF7, "RST $30";
     LD_SP_HL    = 0xF9, "LD", SP, HL;
     LD_A_ADDR   = 0xFA, "LD", A, Addr;
     EI          = 0xFB, "EI";
     CP_A_IMM8   = 0xFE, "CP", A, Imm8;
+    RST_38      = 0xFF, "RST $38";
 }
 
 pub const CB_TARGETS: [Operand; 8] = [

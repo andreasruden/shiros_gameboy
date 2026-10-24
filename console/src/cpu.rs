@@ -349,30 +349,38 @@ impl CPU {
             // CX
             op::RET_NZ => self.ret_test(bus, flag::Z, false),
             op::JP => self.jp(bus),
+            op::RST_00 => self.rst(bus, 0x00),
             op::RET_Z => self.ret_test(bus, flag::Z, true),
             op::RET => self.ret(bus),
             op::PREFIX => self.prefix(bus),
             op::CALL_IMM16 => self.call_imm16(bus),
+            op::RST_08 => self.rst(bus, 0x08),
 
             // DX
             op::RET_NC => self.ret_test(bus, flag::C, false),
+            op::RST_10 => self.rst(bus, 0x10),
             op::RET_C => self.ret_test(bus, flag::C, true),
+            op::RST_18 => self.rst(bus, 0x18),
 
             // EX
             op::LDH_IMM8_A => self.ldh_12(bus, Operand::Imm8, Operand::A),
             op::LDH_C_A => self.ldh_8(bus, Operand::C, Operand::A),
             op::AND_A_IMM8 => self.and(bus, Operand::Imm8),
+            op::RST_20 => self.rst(bus, 0x20),
             op::LD_ADDR_A => self.ld_deref_imm16(bus, true),
             op::XOR_A_IMM8 => self.xor(bus, Operand::Imm8),
+            op::RST_28 => self.rst(bus, 0x28),
 
             // FX
             op::LDH_A_IMM8 => self.ldh_12(bus, Operand::A, Operand::Imm8),
             op::LDH_A_C => self.ldh_8(bus, Operand::A, Operand::C),
             op::DI => self.di(bus),
             op::OR_A_IMM8 => self.or(bus, Operand::Imm8),
+            op::RST_30 => self.rst(bus, 0x30),
             op::LD_SP_HL => self.ld_sp_hl(bus),
             op::LD_A_ADDR => self.ld_deref_imm16(bus, false),
             op::EI => self.ei(bus),
+            op::RST_38 => self.rst(bus, 0x38),
             op::CP_A_IMM8 => self.cp(bus, Operand::A, Operand::Imm8),
 
             _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc - 1),
@@ -657,6 +665,24 @@ impl CPU {
             5 => {
                 bus.write(self.sp, self.pc as u8);
                 self.pc = u16::from_le_bytes([self.z, self.w]);
+                ExecState::Done
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    fn rst(&mut self, bus: &mut impl Bus, addr: u16) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => { self.sp -= 1; ExecState::Partial },
+            2 => {
+                bus.write(self.sp, self.pc as u8);
+                self.sp -= 1;
+                ExecState::Partial
+            },
+            3 => {
+                bus.write(self.sp, (self.pc >> 8) as u8);
+                self.pc = addr;
                 ExecState::Done
             },
             _ => unreachable!(),
@@ -1322,6 +1348,11 @@ mod tests {
             given { a: 42 }
             cycles[R(0x100, op::LD_ADDR_A), R(0x101, 0xAF), R(0x102, 0xC0), W(0xC0AF, 42)]
             expect{ pc: 0x103 }
+
+        rst_28:
+            given { sp: 0xFFFA }
+            cycles [R(0x100, op::RST_28), Idle, W(0xFFF9, 0x01), W(0xFFF8, 0x01)]
+            expect { pc: 0x28, sp: 0xFFF8 }
 
         ldh_a_imm8:
             cycles[R(0x100, op::LDH_A_IMM8), R(0x101, 0xCC), R(0xFFCC, 42)]
