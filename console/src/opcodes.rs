@@ -167,6 +167,7 @@ opcodes! {
     JP          = 0xC3, "JP", Imm16;
     RET_Z       = 0xC8, "RET Z";
     RET         = 0xC9, "RET";
+    PREFIX      = 0xCB, "PREFIX";
     CALL_IMM16  = 0xCD, "CALL", Imm16;
 
     RET_NC      = 0xD0, "RET NC";
@@ -185,6 +186,10 @@ opcodes! {
     EI          = 0xFB, "EI";
     CP_A_IMM8   = 0xFE, "CP", A, Imm8;
 }
+
+pub const CB_TARGETS: [Operand; 8] = [
+    Operand::B, Operand::C, Operand::D, Operand::E, Operand::H, Operand::L, Operand::DerefHL, Operand::A
+];
 
 impl Operand {
     pub fn size(self) -> u16 {

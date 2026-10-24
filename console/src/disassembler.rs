@@ -1,4 +1,4 @@
-use crate::opcodes::{OPCODES, OpInfo, Operand};
+use crate::opcodes::{CB_TARGETS, OPCODES, OpInfo, Operand, op};
 use std::fmt::Write;
 
 static UNKNOWN_OPCODE: OpInfo = OpInfo {
@@ -7,13 +7,20 @@ static UNKNOWN_OPCODE: OpInfo = OpInfo {
     operands: &[],
 };
 
+const CB_SHIFT_MNEMONICS: [&str; 8] = ["RLC", "RRC", "RL", "RR", "SLA", "SRA", "SWAP", "SRL"];
+
 // Returns the string representation of the next instruction as
 // well as the address of the next instruction in the code
 pub fn disassemble_next(code: &[u8], mut pc: u16) -> (String, u16) {
     let op = code[pc as usize];
     pc += 1;
-    let op_info = lookup_opcode(op);
 
+    if op == op::PREFIX {
+        let cb_op = code[pc as usize];
+        return (disassemble_cb(cb_op), pc + 1);
+    }
+
+    let op_info = lookup_opcode(op);
     let mut disassemble = String::from(op_info.mnemonic);
 
     // TODO: temporary
@@ -41,6 +48,20 @@ pub fn disassemble_next(code: &[u8], mut pc: u16) -> (String, u16) {
     }
 
     (disassemble, pc)
+}
+
+fn disassemble_cb(op: u8) -> String {
+    let target = CB_TARGETS[(op & 0b111) as usize];
+    let arg = (op >> 3) & 0b111;
+    let group = op >> 6;
+
+    match group {
+        0 => format!("{} {target}", CB_SHIFT_MNEMONICS[arg as usize]),
+        1 => format!("BIT {arg}, {target}"),
+        2 => format!("RES {arg}, {target}"),
+        3 => format!("SET {arg}, {target}"),
+        _ => unreachable!(),
+    }
 }
 
 fn lookup_opcode(op: u8) -> &'static OpInfo {
@@ -94,5 +115,23 @@ mod tests {
         let (s, new_pc) = disassemble_next(&code, pc);
         assert_eq!(new_pc, 3);
         assert_eq!(s, "LD HL, $AABB");
+    }
+
+    #[test]
+    fn cb_shift_instruction() {
+        let code = [op::PREFIX, 0x26];
+        let pc: u16 = 0;
+        let (s, new_pc) = disassemble_next(&code, pc);
+        assert_eq!(new_pc, 2);
+        assert_eq!(s, "SLA [HL]");
+    }
+
+    #[test]
+    fn cb_bit_instruction() {
+        let code = [op::PREFIX, 0x7C];
+        let pc: u16 = 0;
+        let (s, new_pc) = disassemble_next(&code, pc);
+        assert_eq!(new_pc, 2);
+        assert_eq!(s, "BIT 7, H");
     }
 }

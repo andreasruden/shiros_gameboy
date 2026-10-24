@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::atomic::{AtomicBool, Ordering}};
 
-use crate::{bus::Bus, gameboy::StopReason, opcodes::{Operand, op}};
+use crate::{bus::Bus, gameboy::StopReason, opcodes::{CB_TARGETS, Operand, op}};
 
 pub struct CPU {
     a: u8, f: u8,  // Accumulator & Flags
@@ -330,6 +330,7 @@ impl CPU {
             op::JP => self.jp(bus),
             op::RET_Z => self.ret_test(bus, flag::Z, true),
             op::RET => self.ret(bus),
+            op::PREFIX => self.prefix(bus),
             op::CALL_IMM16 => self.call_imm16(bus),
 
             // DX
@@ -886,6 +887,91 @@ impl CPU {
 
         ExecState::Done
     }
+
+    fn prefix(&mut self, bus: &mut impl Bus) -> ExecState {
+        // Load the inner opcode into z after the prefix
+        if self.m == 0 {
+            return ExecState::Partial;
+        } else if self.m == 1 {
+            self.z = self.load_pc(bus);
+        }
+
+        // Decode the opcode into (target, arg, group)
+        let opcode = self.z;
+        let target = CB_TARGETS[(opcode & 0b111) as usize];
+        let arg = (opcode >> 3) & 0b111;
+        let group = opcode >> 6;
+
+        // Load target
+        if target.is_mem() {
+            if self.m == 1 {
+                return ExecState::Partial;
+            } else if self.m == 2 {
+                self.w = self.load_mem(bus, target);
+            }
+        } else if self.m == 1 {
+            self.w = self.reg8(target);
+        }
+
+        // Execute the opcode derived from group
+        let operand_ready = if target.is_mem() { self.m == 2 } else { self.m == 1 };
+        if operand_ready {
+            self.execute_cb_opcode(group, arg);
+        }
+
+        // For opcodes that write back to memory we need to wait an extra cycle since we read on this M-cycle
+        if group != 1 && self.m == 2 && target.is_mem() {
+            return ExecState::Partial;
+        }
+
+        // Store the results
+        if group != 1 {
+            if target.is_mem() {
+                self.store_mem(bus, target, self.w);
+            } else {
+                self.set_reg8(target, self.w);
+            }
+        }
+
+        ExecState::Done
+    }
+
+    fn execute_cb_opcode(&mut self, group: u8, arg: u8) {
+        match group {
+            // Rotate/Shift depending on arg: RLC, RRC, RL, RR, SLA, SRA, SWAP, SRL
+            0 => {
+                let w = self.w;
+                let c = self.is_set(flag::C) as u8;
+                let (result, new_carry) = match arg {
+                    0 => (w.rotate_left(1), w >> 7),
+                    1 => (w.rotate_right(1), w & 1),
+                    2 => ((w << 1) | c, w >> 7),
+                    3 => ((w >> 1) | (c << 7), w & 1),
+                    4 => (w << 1, w >> 7),
+                    5 => ((w >> 1) | (w & 0x80), w & 1),
+                    6 => (w.rotate_left(4), 0),
+                    7 => (w >> 1, w & 1),
+                    _ => unreachable!(),
+                };
+                self.w = result;
+                self.update_flag(flag::Z, result == 0);
+                self.clear_flag(flag::N);
+                self.clear_flag(flag::H);
+                self.update_flag(flag::C, new_carry != 0);
+            },
+            // Test Bit #arg
+            1 => {
+                self.update_flag(flag::Z, self.w & (1 << arg) == 0);
+                self.clear_flag(flag::N);
+                self.set_flag(flag::H);
+            },
+            // Clear Bit #arg
+            2 => self.w = self.w & !(1 << arg),
+            // Set bit #arg
+            3 => self.w = self.w | (1 << arg),
+            _ => unreachable!(),
+        };
+    }
 }
 
 #[cfg(test)]
@@ -1197,6 +1283,41 @@ mod tests {
             given { a: 42, f: flag::Z.into() }
             cycles[R(0x100, op::CP_A_IMM8), R(0x101, 43)]
             expect { pc: 0x102, f: (flag::N | flag::H | flag::C).into() }
+
+        prefix_rl_b:
+            given { b: 0x80, f: flag::C.into() }
+            cycles [R(0x100, op::PREFIX), R(0x101, 0x10)]
+            expect { pc: 0x102, b: 0x01, f: flag::C.into() }
+
+        prefix_srl_b:
+            given { b: 0x01 }
+            cycles [R(0x100, op::PREFIX), R(0x101, 0x38)]
+            expect { pc: 0x102, b: 0, f: (flag::Z | flag::C).into() }
+
+        prefix_bit_7_h:
+            given { h: 0x80 }
+            cycles [R(0x100, op::PREFIX), R(0x101, 0x7C)]
+            expect { pc: 0x102, f: flag::H.into() }
+
+        prefix_bit_7_h_zero:
+            given { h: 0 }
+            cycles [R(0x100, op::PREFIX), R(0x101, 0x7C)]
+            expect { pc: 0x102, f: (flag::Z | flag::H).into() }
+
+        prefix_set_0_dhl:
+            given { hl: 0x8080 }
+            cycles [R(0x100, op::PREFIX), R(0x101, 0xC6), R(0x8080, 0), W(0x8080, 1)]
+            expect { pc: 0x102 }
+
+        prefix_bit_0_dhl:
+            given { hl: 0x8080 }
+            cycles [R(0x100, op::PREFIX), R(0x101, 0x46), R(0x8080, 1)]
+            expect { pc: 0x102, f: flag::H.into() }
+
+        prefix_sla_dhl:
+            given { hl: 0x8080 }
+            cycles [R(0x100, op::PREFIX), R(0x101, 0x26), R(0x8080, 0x81), W(0x8080, 0x02)]
+            expect { pc: 0x102, f: flag::C.into() }
     }
 
     macro_rules! ld_r_imm8 {
