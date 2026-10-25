@@ -372,12 +372,14 @@ impl CPU {
             // CX
             op::RET_NZ => self.ret_test(bus, flag::Z, false),
             op::POP_BC => self.pop(bus, Operand::BC),
-            op::JP => self.jp(bus),
+            op::JP_NZ_IMM16 => self.jp(bus, |s| !s.is_set(flag::Z)),
+            op::JP => self.jp(bus, |_| true),
             op::PUSH_BC => self.push(bus, Operand::BC),
             op::ADD_A_IMM8 => self.add(bus, Operand::Imm8, false),
             op::RST_00 => self.rst(bus, 0x00),
             op::RET_Z => self.ret_test(bus, flag::Z, true),
             op::RET => self.ret(bus),
+            op::JP_Z_IMM16 => self.jp(bus, |s| s.is_set(flag::Z)),
             op::PREFIX => self.prefix(bus),
             op::CALL_IMM16 => self.call_imm16(bus),
             op::ADC_A_IMM8 => self.add(bus, Operand::Imm8, true),
@@ -386,9 +388,11 @@ impl CPU {
             // DX
             op::RET_NC => self.ret_test(bus, flag::C, false),
             op::POP_DE => self.pop(bus, Operand::DE),
+            op::JP_NC_IMM16 => self.jp(bus, |s| !s.is_set(flag::C)),
             op::PUSH_DE => self.push(bus, Operand::DE),
             op::RST_10 => self.rst(bus, 0x10),
             op::RET_C => self.ret_test(bus, flag::C, true),
+            op::JP_C_IMM16 => self.jp(bus, |s| s.is_set(flag::C)),
             op::RST_18 => self.rst(bus, 0x18),
 
             // EX
@@ -814,15 +818,21 @@ impl CPU {
         }
     }
 
-    fn jp(&mut self, bus: &mut impl Bus) -> ExecState {
+    fn jp<F>(&mut self, bus: &mut impl Bus, cond: F) -> ExecState
+    where
+        F: Fn(&Self) -> bool,
+    {
         match self.m {
             0 => ExecState::Partial,
             1 => { self.z = self.load_pc(bus); ExecState::Partial },
-            2 => { self.w = self.load_pc(bus); ExecState::Partial },
+            2 => {
+                self.w = self.load_pc(bus);
+                if cond(self) { ExecState::Partial } else { ExecState::Done }
+            },
             3 => {
                 let addr = u16::from_le_bytes([self.z, self.w]);
                 self.pc = addr;
-                return ExecState::Done;
+                ExecState::Done
             },
             _ => unreachable!(),
         }
@@ -1455,6 +1465,15 @@ mod tests {
             given { sp: 0xFFF4 }
             cycles [R(0x100, op::CALL_IMM16), R(0x101, 0x3C), R(0x102, 0x02), Idle, W(0xFFF3, 0x01), W(0xFFF2, 0x03)]
             expect { pc: 0x023C, sp: 0xFFF2 }
+
+        jp_c_imm16_not_taken:
+            cycles [R(0x100, op::JP_C_IMM16), R(0x101, 0xC8), R(0x102, 0x02)]
+            expect { pc: 0x103 }
+
+        jp_c_imm16_taken:
+            given { f: flag::C.into() }
+            cycles [R(0x100, op::JP_C_IMM16), R(0x101, 0xC8), R(0x102, 0x02), Idle]
+            expect { pc: 0x02C8 }
 
         ret_c_not_taken:
             cycles [R(0x100, op::RET_C), Idle]

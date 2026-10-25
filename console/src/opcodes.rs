@@ -208,12 +208,14 @@ opcodes! {
 
     RET_NZ      = 0xC0, "RET NZ";
     POP_BC      = 0xC1, "POP", BC;
+    JP_NZ_IMM16 = 0xC2, "JP NZ,", Imm16;
     JP          = 0xC3, "JP", Imm16;
     PUSH_BC     = 0xC5, "PUSH", BC;
     ADD_A_IMM8  = 0xC6, "ADD", A, Imm8;
     RST_00      = 0xC7, "RST $00";
     RET_Z       = 0xC8, "RET Z";
     RET         = 0xC9, "RET";
+    JP_Z_IMM16  = 0xCA, "JP Z,", Imm16;
     PREFIX      = 0xCB, "PREFIX";
     CALL_IMM16  = 0xCD, "CALL", Imm16;
     ADC_A_IMM8  = 0xCE, "ADC", A, Imm8;
@@ -221,9 +223,11 @@ opcodes! {
 
     RET_NC      = 0xD0, "RET NC";
     POP_DE      = 0xD1, "POP", DE;
+    JP_NC_IMM16 = 0xD2, "JP NC,", Imm16;
     PUSH_DE     = 0xD5, "PUSH", DE;
     RST_10      = 0xD7, "RST $10";
     RET_C       = 0xD8, "RET C";
+    JP_C_IMM16  = 0xDA, "JP C,", Imm16;
     RST_18      = 0xDF, "RST $18";
 
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
