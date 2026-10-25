@@ -88,8 +88,8 @@ impl Debugger {
                     Err(e) => println!("Error: {e}"),
                 },
                 (Some("r" | "registers"), _, _) => self.print_cpu_registers(),
-                (Some("m" | "memory"), addr, _) => match parse_addr(addr) {
-                    Ok(addr) => println!("{}", self.read_memory(addr)),
+                (Some("m" | "memory"), start, end) => match parse_addr_range(start, end) {
+                    Ok((start_addr, end_addr)) => self.hexdump_memory(start_addr, end_addr),
                     Err(e) => println!("Error: {e}"),
                 },
                 (Some("w" | "write"), arg1, arg2) => match (arg1, arg2) {
@@ -124,6 +124,50 @@ impl Debugger {
         println!("SP={:04X}  PC={:04X}  F={}", cpu.sp(), cpu.pc(), flags_string(cpu.f()));
     }
 
+    fn hexdump_memory(&mut self, start: u16, end: u16) {
+        assert!(start <= end);
+
+        if start == end {
+            let byte = self.read_memory(start);
+            if (0x20..=0x7E).contains(&byte) {
+                println!("{:02X} '{}'", byte, byte as char);
+            } else {
+                println!("{:02X}", byte);
+            }
+            return;
+        }
+
+        let start = start as u32;
+        let end = end as u32;
+        let mut line_addr = start & !0xF;  // truncate to nearest 16-byte boundary
+
+        while line_addr <= end {
+            let mut hex = String::with_capacity(50);
+            let mut ascii = String::with_capacity(16);
+
+            for i in 0..16 {
+                let addr = line_addr + i;
+                if addr < start || addr > end {
+                    hex.push_str("  ");
+                    ascii.push(' ');
+                    continue;
+                }
+
+                let byte = self.read_memory(addr as u16);
+                hex.push_str(&format!("{:02X} ", byte));
+                let ascii_char = if (0x20..=0x7E).contains(&byte) { byte as char } else { '.' };
+                ascii.push(ascii_char);
+
+                if i == 7 {
+                    hex.push(' ');  // extra space at 8 byte boundary
+                }
+            }
+
+            println!("{:04X}:  {} |{}|", line_addr, hex, ascii);
+            line_addr += 16;
+        }
+    }
+
     fn write_memory(&mut self, addr: u16, byte: u8) {
         match addr {
             0x0000..=0x3FFF => self.gameboy.cartridge.as_mut().unwrap().rom[addr as usize] = byte,
@@ -133,14 +177,15 @@ impl Debugger {
         println!("[${addr:04X}] = {}", self.read_memory(addr));
     }
 
-    fn read_memory(&mut self, addr: u16) -> String {
+    fn read_memory(&mut self, addr: u16) -> u8 {
         let byte: u8;
         match addr {
             0x0000..=0x3FFF => byte = self.gameboy.cartridge.as_ref().unwrap().rom[addr as usize],
+            0x8000..=0x9FFF => byte = self.gameboy.vram[(addr - 0x8000) as usize],
             0xFF00..=0xFF7F => byte = self.gameboy.hw_reg.get(addr),
             _ => todo!(),
         };
-        format!("${byte:02X}")
+        byte
     }
 }
 
@@ -155,6 +200,32 @@ fn parse_addr(arg: Option<&str>) -> Result<u16, String> {
     match arg {
         None => Err(String::from("Must specify an address")),
         Some(s) => parse_u16(s).map_err(|e| format!("parse addr yielded {e}")),
+    }
+}
+
+fn parse_addr_range(start: Option<&str>, end: Option<&str>) -> Result<(u16, u16), String> {
+    match end {
+        None => {
+            match parse_addr(start) {
+                Err(e) => Err(e),
+                Ok(addr) => Ok((addr, addr)),
+            }
+        }
+        Some(_) => {
+            let start_addr = parse_addr(start);
+            let end_addr = parse_addr(end);
+            if start_addr.is_err() || end_addr.is_err() {
+                return Err(String::from("could not parse addresses in range"));
+            }
+
+            let start_addr_val = start_addr.unwrap();
+            let end_addr_val = end_addr.unwrap();
+            if start_addr_val > end_addr_val {
+                return Err(String::from("start is larger than end"));
+            }
+
+            Ok((start_addr_val, end_addr_val))
+        }
     }
 }
 
