@@ -157,6 +157,9 @@ impl CPU {
         bus.write(0xFF47, 0xFc);  // background palette
         bus.write(0xFF48, 0xFF);  // sprite palette 0
         bus.write(0xFF49, 0xFF);  // sprite palette 1
+
+        // set all joypad buttons to not held (TODO: should be removable when joypad is implemented)
+        bus.hw_reg().unwrap().joypad = 0xCF;
     }
 
     // Returns a reason for "stopping", if the reason is cycle that indluces how many

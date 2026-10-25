@@ -30,6 +30,9 @@ pub struct HwRegisters {
 pub trait Bus {
     fn read(&mut self, addr: u16) -> u8;
     fn write(&mut self, addr: u16, byte: u8);
+    fn hw_reg(&mut self) -> Option<&mut HwRegisters> {
+        None
+    }
 
     fn dbg_watchpoints(&mut self) -> Option<&mut Watchpoints> {
         None
@@ -106,7 +109,7 @@ impl HwRegisters {
 
     pub fn set(&mut self, addr: u16, val: u8) {
         match addr {
-            0xFF00 => self.joypad = val,
+            0xFF00 => self.joypad = (self.joypad & !0x30) | (val | 0x30),  // only bit 4 and 5 writable by game
             0xFF0F => self.i_f = val,
             0xFF01 => self.serial_1 = val,
             0xFF02 => self.serial_2 = val,
@@ -172,6 +175,10 @@ impl Bus for CpuBus<'_> {
         };
     }
 
+    fn hw_reg(&mut self) -> Option<&mut HwRegisters> {
+        Some(&mut self.hw_reg)
+    }
+
     fn dbg_watchpoints(&mut self) -> Option<&mut Watchpoints> {
         self.dbg_watchpoints.as_deref_mut()
     }
@@ -198,6 +205,10 @@ impl Bus for PpuBus<'_> {
             0xFFFF => self.hw_reg.set(addr, byte),
             _ => todo!("PpuBus::write for {addr:04X} not handled"),
         };
+    }
+
+    fn hw_reg(&mut self) -> Option<&mut HwRegisters> {
+        Some(&mut self.hw_reg)
     }
 
     fn dbg_watchpoints(&mut self) -> Option<&mut Watchpoints> {
