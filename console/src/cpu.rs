@@ -164,7 +164,7 @@ impl CPU {
     pub fn step(&mut self, bus: &mut impl Bus) -> StopReason {
         // M0: Instruction Fetch
         if self.m == 0 {
-            if let Some(reason) = self.should_break() {
+            if let Some(reason) = self.should_break(bus) {
                 return reason;
             }
 
@@ -425,7 +425,7 @@ impl CPU {
         }
     }
 
-    fn should_break(&mut self) -> Option<StopReason> {
+    fn should_break(&mut self, bus: &mut impl Bus) -> Option<StopReason> {
         if self.debug {
             if let Some(flag) = self.stop_request && flag.swap(false, Ordering::Relaxed) {
                 return Some(StopReason::StopRequested);
@@ -433,6 +433,10 @@ impl CPU {
 
             if self.breakpoints.contains(&self.pc) {
                 return Some(StopReason::Breakpoint(self.pc));
+            }
+
+            if let Some(wps) = &mut bus.dbg_watchpoints() && let Some(addr) = wps.hit.take() {
+                return Some(StopReason::Watchpoint(addr));
             }
 
             if self.break_counter == 0 {

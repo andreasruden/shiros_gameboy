@@ -32,11 +32,12 @@ impl Debugger {
         self.gameboy.power_on();
         loop {
             match self.gameboy.run() {
-                StopReason::Breakpoint(addr) => self.on_pause(Some(addr)),
-                StopReason::Step => self.on_pause(None),
+                StopReason::Breakpoint(addr) => self.on_pause(Some(addr), None),
+                StopReason::Watchpoint(addr) => self.on_pause(None, Some(addr)),
+                StopReason::Step => self.on_pause(None, None),
                 StopReason::StopRequested => {
                     println!();
-                    self.on_pause(None);
+                    self.on_pause(None, None);
                 }
                 StopReason::Halt => break,
                 _ => panic!("Unhandled StopReason"),
@@ -44,10 +45,13 @@ impl Debugger {
         }
     }
 
-    fn on_pause(&mut self, breakpoint: Option<u16>) {
+    fn on_pause(&mut self, breakpoint: Option<u16>, watchpoint: Option<u16>) {
         let pc = self.gameboy.cpu.pc();
         if let Some(addr) = breakpoint {
             println!("Break at {:04X}", addr);
+        }
+        if let Some(addr) = watchpoint {
+            println!("Watchpoint for address {:04X} triggered", addr);
         }
         if let Some(cart) = &self.gameboy.cartridge {
             let (text, _) = disassemble_next(&cart.rom, pc);
@@ -87,16 +91,32 @@ impl Debugger {
                     Ok(addr) => self.gameboy.cpu.debug_delete_breakpoint(addr),
                     Err(e) => println!("Error: {e}"),
                 },
+                (Some("w" | "watch"), arg1, arg2) => match parse_addr_range(arg1, arg2) {
+                    Ok((start_addr, end_addr)) => {
+                        match self.gameboy.debug_set_watchpoint(start_addr, end_addr) {
+                            Ok(_) => { println!("Watching ${start_addr:04X}..=${end_addr:04X}") },
+                            Err(e) => println!("Error: {e}"),
+                        };
+                    }
+                    Err(e) => println!("Error: {e}"),
+                },
+                (Some("uw" | "unwatch"), arg, _) => match parse_addr(arg) {
+                    Ok(addr) => {
+                        let removed = self.gameboy.debug_delete_watchpoint(addr);
+                        println!("removed {removed} watchpoint range(s)");
+                    }
+                    Err(e) => println!("Error: {e}"),
+                },
                 (Some("r" | "registers"), _, _) => self.print_cpu_registers(),
                 (Some("m" | "memory"), start, end) => match parse_addr_range(start, end) {
                     Ok((start_addr, end_addr)) => self.hexdump_memory(start_addr, end_addr),
                     Err(e) => println!("Error: {e}"),
                 },
-                (Some("w" | "write"), arg1, arg2) => match (arg1, arg2) {
+                (Some("wr" | "write"), arg1, arg2) => match (arg1, arg2) {
                     (Some(arg1), Some(arg2)) => self.write_cmd(arg1, arg2),
                     _ => println!("Error: command is \"write location value\""),
                 },
-                (Some("h" | "help"), _, _) => println!("Available commands: (c)ontinue, (s)tep"),
+                (Some("h" | "help"), _, _) => print_help(),
                 (Some(cmd), _, _) => println!("Undefined command: {cmd}. Try \"help\"."),
                 (None, _, _) => {},
             }
@@ -148,15 +168,14 @@ impl Debugger {
             for i in 0..16 {
                 let addr = line_addr + i;
                 if addr < start || addr > end {
-                    hex.push_str("  ");
+                    hex.push_str("   ");
                     ascii.push(' ');
-                    continue;
+                } else {
+                    let byte = self.read_memory(addr as u16);
+                    hex.push_str(&format!("{:02X} ", byte));
+                    let ascii_char = if (0x20..=0x7E).contains(&byte) { byte as char } else { '.' };
+                    ascii.push(ascii_char);
                 }
-
-                let byte = self.read_memory(addr as u16);
-                hex.push_str(&format!("{:02X} ", byte));
-                let ascii_char = if (0x20..=0x7E).contains(&byte) { byte as char } else { '.' };
-                ascii.push(ascii_char);
 
                 if i == 7 {
                     hex.push(' ');  // extra space at 8 byte boundary
@@ -247,4 +266,17 @@ fn flags_string(flags: u8) -> String {
     [(0x80, "Z"), (0x40, "N"), (0x20, "H"), (0x10, "C")].iter().map(
         |(bit, flag)| if (flags & bit) != 0 { flag } else { " " }
     ).collect()
+}
+
+fn print_help() {
+    println!("Available commands:");
+    println!("  c  | continue     run until next breakpoint or ctrl-c");
+    println!("  s  | step         run one instruction");
+    println!("  b  | break        break on address (arg1)");
+    println!("  d  | delete       delete breakpoint on address (arg1)");
+    println!("  w  | watch        break on writes between start (arg1) and end inclusively (arg2, optional)");
+    println!("  uw | unwatch      remove watch breakpoint range overlapping address (arg1)");
+    println!("  r  | registers    print the value of CPU registers");
+    println!("  m  | memory       dump the memory between start (arg1) and end inclusively (arg2, optional)");
+    println!("  wr | write        dump into address (arg1) the value specified (arg2)");
 }

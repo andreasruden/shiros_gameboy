@@ -1,4 +1,4 @@
-use crate::{Cartridge, apu::APU, lcd::LCD};
+use crate::{Cartridge, apu::APU, gameboy::Watchpoints, lcd::LCD};
 
 pub struct HwRegisters {
     pub joypad: u8,         // $FF00
@@ -30,6 +30,10 @@ pub struct HwRegisters {
 pub trait Bus {
     fn read(&mut self, addr: u16) -> u8;
     fn write(&mut self, addr: u16, byte: u8);
+
+    fn dbg_watchpoints(&mut self) -> Option<&mut Watchpoints> {
+        None
+    }
 }
 
 pub struct CpuBus<'a> {
@@ -40,12 +44,16 @@ pub struct CpuBus<'a> {
     pub oam: &'a mut [u8; 160],
     pub hw_reg: &'a mut HwRegisters,
     pub hram: &'a mut [u8; 127],
+
+    pub dbg_watchpoints: Option<&'a mut Watchpoints>,
 }
 
 pub struct PpuBus<'a> {
     pub hw_reg: &'a mut HwRegisters,
     pub lcd: &'a mut LCD,
     pub vram: &'a mut [u8; 0x2000],
+
+    pub dbg_watchpoints: Option<&'a mut Watchpoints>,
 }
 
 impl HwRegisters {
@@ -140,6 +148,10 @@ impl Bus for CpuBus<'_> {
     }
 
     fn write(&mut self, addr: u16, byte: u8) {
+        if let Some(wp) = &mut self.dbg_watchpoints {
+            handle_watchpoints(wp, addr, byte);
+        }
+
         match addr {
             0x0000..=0x7FFF => { /* ignored until MBC is emulated */ },
             0xC000..=0xDFFF => self.wram[(addr - 0xC000) as usize] = byte,
@@ -159,6 +171,10 @@ impl Bus for CpuBus<'_> {
             _ => todo!("CpuBus::write for {addr:04X} not handled"),
         };
     }
+
+    fn dbg_watchpoints(&mut self) -> Option<&mut Watchpoints> {
+        self.dbg_watchpoints.as_deref_mut()
+    }
 }
 
 impl Bus for PpuBus<'_> {
@@ -172,11 +188,26 @@ impl Bus for PpuBus<'_> {
     }
 
     fn write(&mut self, addr: u16, byte: u8) {
+        if let Some(wp) = &mut self.dbg_watchpoints {
+            handle_watchpoints(wp, addr, byte);
+        }
+
         match addr {
             0x8000..=0x9FFF => self.vram[(addr - 0x8000) as usize] = byte,
             0xFF00..=0xFF7F => self.hw_reg.set(addr, byte),
             0xFFFF => self.hw_reg.set(addr, byte),
             _ => todo!("PpuBus::write for {addr:04X} not handled"),
         };
+    }
+
+    fn dbg_watchpoints(&mut self) -> Option<&mut Watchpoints> {
+        self.dbg_watchpoints.as_deref_mut()
+    }
+}
+
+fn handle_watchpoints(watchpoints: &mut Watchpoints, addr: u16, _byte: u8) {
+    match watchpoints.ranges.iter().find(|wp| (wp.0..=wp.1).contains(&addr)) {
+        Some(_) => watchpoints.hit = Some(addr),
+        None => { /* do nothing */},
     }
 }

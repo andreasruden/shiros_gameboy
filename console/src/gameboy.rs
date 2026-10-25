@@ -22,12 +22,21 @@ pub struct GameBoy {
     pub ie_reg: u8,
     pub hram: [u8; 127],
 
-    pub lcd_consumer: Option<Consumer>
+    pub lcd_consumer: Option<Consumer>,
+
+    debugged: bool,
+    watchpoints: Watchpoints,
+}
+
+pub struct Watchpoints {
+    pub ranges: Vec<(u16, u16)>,
+    pub hit: Option<u16>,
 }
 
 #[derive(PartialEq, Eq)]
 pub enum StopReason {
     Breakpoint(u16),
+    Watchpoint(u16),
     Step,
     Cycle(u8),
     Halt,
@@ -51,6 +60,11 @@ impl GameBoy {
             ie_reg: 0,
             hram: [0; 127],
             lcd_consumer: Some(lcd_consumer),
+            debugged: false,
+            watchpoints: Watchpoints {
+                ranges: Vec::new(),
+                hit: None,
+            },
         }
     }
 
@@ -67,6 +81,7 @@ impl GameBoy {
             oam: &mut self.oam,
             hw_reg: &mut self.hw_reg,
             hram: &mut self.hram,
+            dbg_watchpoints: if self.debugged { Some(&mut self.watchpoints) } else { None },
         };
         (&mut self.cpu, bus)
     }
@@ -84,6 +99,7 @@ impl GameBoy {
             match res {
                 StopReason::Step => return StopReason::Step,
                 StopReason::Breakpoint(addr) => return StopReason::Breakpoint(addr),
+                StopReason::Watchpoint(addr) => return StopReason::Watchpoint(addr),
                 StopReason::Halt => return StopReason::Halt,
                 StopReason::StopRequested => return StopReason::StopRequested,
                 StopReason::Cycle(t_cycles) => {
@@ -91,6 +107,7 @@ impl GameBoy {
                         hw_reg: &mut self.hw_reg,
                         lcd: &mut self.lcd,
                         vram: &mut self.vram,
+                        dbg_watchpoints: if self.debugged { Some(&mut self.watchpoints) } else { None },
                     });
 
                     self.clock.advance(t_cycles);
@@ -104,6 +121,28 @@ impl GameBoy {
     }
 
     pub fn set_debugged(&mut self, state: bool) {
+        self.debugged = state;
         self.cpu.set_debugged(state);
     }
+
+    pub fn debug_set_watchpoint(&mut self, start_addr: u16, end_addr: u16) -> Result<(), String> {
+        assert!(self.debugged);
+        let has_overlap = self.watchpoints.ranges.iter().any(|wp| range_overlaps(wp, &(start_addr, end_addr)));
+        if has_overlap {
+            return Err(String::from("the range contains already watched addresses"));
+        }
+        self.watchpoints.ranges.push((start_addr, end_addr));
+        Ok(())
+    }
+
+    pub fn debug_delete_watchpoint(&mut self, addr: u16) -> usize {
+        assert!(self.debugged);
+        let size = self.watchpoints.ranges.len();
+        self.watchpoints.ranges.retain(|wp| !range_overlaps(wp, &(addr, addr)));
+        size - self.watchpoints.ranges.len()
+    }
+}
+
+fn range_overlaps(a: &(u16, u16), b: &(u16, u16)) -> bool {
+    a.0 <= b.1 && b.0 <= a.1
 }
