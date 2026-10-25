@@ -45,6 +45,7 @@ opcodes! {
     DEC_B       = 0x05, "DEC", B;
     LD_B_IMM8   = 0x06, "LD", B, Imm8;
     LD_ADDR_SP  = 0x08, "LD", Addr, SP;
+    ADD_HL_BC   = 0x09, "ADD", HL, BC;
     LD_A_DBC    = 0x0A, "LD", A, DerefBC;
     DEC_BC      = 0x0B, "DEC", BC;
     INC_C       = 0x0C, "INC", C;
@@ -58,6 +59,7 @@ opcodes! {
     DEC_D       = 0x15, "DEC", D;
     LD_D_IMM8   = 0x16, "LD", D, Imm8;
     JR_IMM8     = 0x18, "JR", Imm8;
+    ADD_HL_DE   = 0x19, "ADD", HL, DE;
     LD_A_DDE    = 0x1A, "LD", A, DerefDE;
     DEC_DE      = 0x1B, "DEC", DE;
     INC_E       = 0x1C, "INC", E;
@@ -72,6 +74,7 @@ opcodes! {
     DEC_H       = 0x25, "DEC", H;
     LD_H_IMM8   = 0x26, "LD", H, Imm8;
     JR_Z_IMM8   = 0x28, "JR Z,", Imm8;
+    ADD_HL_HL   = 0x29, "ADD", HL, HL;
     LDI_A_HL    = 0x2A, "LD", A, DerefHLPlus;
     DEC_HL      = 0x2B, "DEC", HL;
     INC_L       = 0x2C, "INC", L;
@@ -85,6 +88,7 @@ opcodes! {
     INC_SP      = 0x33, "INC", SP;
     LD_DHL_IMM8 = 0x36, "LD", DerefHL, Imm8;
     JR_C_IMM8   = 0x38, "JR C,", Imm8;
+    ADD_HL_SP   = 0x39, "ADD", HL, SP;
     LDD_A_HL    = 0x3A, "LD", A, DerefHLMinus;
     DEC_SP      = 0x3B, "DEC", SP;
     INC_A       = 0x3C, "INC", A;
@@ -158,6 +162,24 @@ opcodes! {
     LD_A_DHL    = 0x7E, "LD", A, DerefHL;
     LD_A_A      = 0x7F, "LD", A, A;
 
+    ADD_A_B     = 0x80, "ADD", A, B;
+    ADD_A_C     = 0x81, "ADD", A, C;
+    ADD_A_D     = 0x82, "ADD", A, D;
+    ADD_A_E     = 0x83, "ADD", A, E;
+    ADD_A_H     = 0x84, "ADD", A, H;
+    ADD_A_L     = 0x85, "ADD", A, L;
+    ADD_A_DHL   = 0x86, "ADD", A, DerefHL;
+    ADD_A_A     = 0x87, "ADD", A, A;
+
+    ADC_A_B     = 0x88, "ADC", A, B;
+    ADC_A_C     = 0x89, "ADC", A, C;
+    ADC_A_D     = 0x8A, "ADC", A, D;
+    ADC_A_E     = 0x8B, "ADC", A, E;
+    ADC_A_H     = 0x8C, "ADC", A, H;
+    ADC_A_L     = 0x8D, "ADC", A, L;
+    ADC_A_DHL   = 0x8E, "ADC", A, DerefHL;
+    ADC_A_A     = 0x8F, "ADC", A, A;
+
     AND_A_B     = 0xA0, "AND", A, B;
     AND_A_C     = 0xA1, "AND", A, C;
     AND_A_D     = 0xA2, "AND", A, D;
@@ -186,11 +208,13 @@ opcodes! {
 
     RET_NZ      = 0xC0, "RET NZ";
     JP          = 0xC3, "JP", Imm16;
+    ADD_A_IMM8  = 0xC6, "ADD", A, Imm8;
     RST_00      = 0xC7, "RST $00";
     RET_Z       = 0xC8, "RET Z";
     RET         = 0xC9, "RET";
     PREFIX      = 0xCB, "PREFIX";
     CALL_IMM16  = 0xCD, "CALL", Imm16;
+    ADC_A_IMM8  = 0xCE, "ADC", A, Imm8;
     RST_08      = 0xCF, "RST $08";
 
     RET_NC      = 0xD0, "RET NC";

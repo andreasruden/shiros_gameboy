@@ -198,6 +198,7 @@ impl CPU {
             op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
             op::LD_ADDR_SP => self.ld_addr_sp(bus),
+            op::ADD_HL_BC => self.add_hl(bus, Operand::BC),
             op::LD_A_DBC => self.ld_byte(bus, Operand::A, Operand::DerefBC),
             op::DEC_BC => self.dec_reg16(bus, Operand::BC),
             op::INC_C => self.inc_reg8(bus, Operand::C),
@@ -212,6 +213,7 @@ impl CPU {
             op::DEC_D => self.dec_reg8(bus, Operand::D),
             op::LD_D_IMM8 => self.ld_byte(bus, Operand::D, Operand::Imm8),
             op::JR_IMM8 => self.jr(bus, |_| true),
+            op::ADD_HL_DE => self.add_hl(bus, Operand::DE),
             op::LD_A_DDE => self.ld_byte(bus, Operand::A, Operand::DerefDE),
             op::DEC_DE => self.dec_reg16(bus, Operand::DE),
             op::INC_E => self.inc_reg8(bus, Operand::E),
@@ -227,6 +229,7 @@ impl CPU {
             op::DEC_H => self.dec_reg8(bus, Operand::H),
             op::LD_H_IMM8 => self.ld_byte(bus, Operand::H, Operand::Imm8),
             op::JR_Z_IMM8 => self.jr(bus, |s| s.is_set(flag::Z)),
+            op::ADD_HL_HL => self.add_hl(bus, Operand::HL),
             op::LDI_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLPlus),
             op::DEC_HL => self.dec_reg16(bus, Operand::HL),
             op::INC_L => self.inc_reg8(bus, Operand::L),
@@ -241,6 +244,7 @@ impl CPU {
             op::INC_SP => self.inc_reg16(bus, Operand::SP),
             op::LD_DHL_IMM8 => self.ld_deref_hl_imm8(bus),
             op::JR_C_IMM8 => self.jr(bus, |s| s.is_set(flag::C)),
+            op::ADD_HL_SP => self.add_hl(bus, Operand::SP),
             op::LDD_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLMinus),
             op::DEC_SP => self.dec_reg16(bus, Operand::SP),
             op::INC_A => self.inc_reg8(bus, Operand::A),
@@ -318,6 +322,25 @@ impl CPU {
             op::LD_A_DHL => self.ld_byte(bus, Operand::A, Operand::DerefHL),
             op::LD_A_A => self.ld_byte(bus, Operand::A, Operand::A),
 
+            // 8X
+            op::ADD_A_B => self.add(bus, Operand::B, false),
+            op::ADD_A_C => self.add(bus, Operand::C, false),
+            op::ADD_A_D => self.add(bus, Operand::D, false),
+            op::ADD_A_E => self.add(bus, Operand::E, false),
+            op::ADD_A_H => self.add(bus, Operand::H, false),
+            op::ADD_A_L => self.add(bus, Operand::L, false),
+            op::ADD_A_DHL => self.add(bus, Operand::DerefHL, false),
+            op::ADD_A_A => self.add(bus, Operand::A, false),
+
+            op::ADC_A_B => self.add(bus, Operand::B, true),
+            op::ADC_A_C => self.add(bus, Operand::C, true),
+            op::ADC_A_D => self.add(bus, Operand::D, true),
+            op::ADC_A_E => self.add(bus, Operand::E, true),
+            op::ADC_A_H => self.add(bus, Operand::H, true),
+            op::ADC_A_L => self.add(bus, Operand::L, true),
+            op::ADC_A_DHL => self.add(bus, Operand::DerefHL, true),
+            op::ADC_A_A => self.add(bus, Operand::A, true),
+
             // AX
             op::AND_A_B => self.and(bus, Operand::B),
             op::AND_A_C => self.and(bus, Operand::C),
@@ -349,11 +372,13 @@ impl CPU {
             // CX
             op::RET_NZ => self.ret_test(bus, flag::Z, false),
             op::JP => self.jp(bus),
+            op::ADD_A_IMM8 => self.add(bus, Operand::Imm8, false),
             op::RST_00 => self.rst(bus, 0x00),
             op::RET_Z => self.ret_test(bus, flag::Z, true),
             op::RET => self.ret(bus),
             op::PREFIX => self.prefix(bus),
             op::CALL_IMM16 => self.call_imm16(bus),
+            op::ADC_A_IMM8 => self.add(bus, Operand::Imm8, true),
             op::RST_08 => self.rst(bus, 0x08),
 
             // DX
@@ -573,7 +598,47 @@ impl CPU {
         ExecState::Done
     }
 
-    // Result is always stored into A
+    // First operand is always A, and result is always stored into A
+    fn add(&mut self, bus: &mut impl Bus, operand: Operand, with_carry: bool) -> ExecState {
+        if operand.is_mem() && self.m == 0 {
+            return ExecState::Partial;
+        }
+
+        let carry = if with_carry { self.is_set(flag::C) as u8 } else { 0 };
+        let rhs = if operand.is_mem() { self.load_mem(bus, operand) } else { self.reg8(operand) };
+        let res = self.a.wrapping_add(carry).wrapping_add(rhs);
+
+        self.update_flag(flag::Z, res == 0);
+        self.clear_flag(flag::N);
+        self.update_flag(flag::H, (self.a & 0xF) + (rhs & 0xF) + carry > 0xF);
+        self.update_flag(flag::C, (self.a as u16) + (rhs as u16) + carry as u16 > 0xFF);
+
+        self.a = res;
+
+        ExecState::Done
+    }
+
+    // First operand is always HL, and result is always stored into HL
+    fn add_hl(&mut self, _bus: &mut impl Bus, operand: Operand) -> ExecState {
+        if self.m == 0 {
+            return ExecState::Partial;
+        }
+
+        let hl = self.hl();
+        let rhs = self.reg16(operand);
+        let res = hl.wrapping_add(rhs);
+
+        // Add HL, r8 leaves Z unchanged
+        self.clear_flag(flag::N);
+        self.update_flag(flag::H, (hl & 0xFFF) + (rhs & 0xFFF) > 0xFFF);
+        self.update_flag(flag::C, (hl as u32) + (rhs as u32) > 0xFFFF);
+
+        self.set_hl(res);
+
+        ExecState::Done
+    }
+
+    // First operand is always A, and result is always stored into A
     fn and(&mut self, bus: &mut impl Bus, operand: Operand) -> ExecState {
         match self.m {
             0 => {
@@ -597,7 +662,7 @@ impl CPU {
         ExecState::Done
     }
 
-    // Result is always stored into A
+    // First operand is always A, and result is always stored into A
     fn xor(&mut self, bus: &mut impl Bus, operand: Operand) -> ExecState {
         match self.m {
             0 => {
@@ -620,7 +685,7 @@ impl CPU {
         ExecState::Done
     }
 
-    // Result is always stored into A
+    // First operand is always A, and result is always stored into A
     fn or(&mut self, bus: &mut impl Bus, operand: Operand) -> ExecState {
         match self.m {
             0 => {
@@ -1199,6 +1264,11 @@ mod tests {
             cycles [R(0x100, op::LD_ADDR_SP), R(0x101, 0x80), R(0x102, 0x80), W(0x8080, 0xF0), W(0x8081, 0xFF)]
             expect { pc: 0x103 }
 
+        add_hl_bc:
+            given { hl: 0xFFAB, bc: 0xFF3C, f: (flag::Z | flag::N).into() }
+            cycles [R(0x100, op::ADD_HL_BC), Idle]
+            expect { pc: 0x101, hl: 0xFEE7, f: (flag::Z | flag::H | flag::C).into() }
+
         ld_a_dbc:
             given { bc: 0x2030 }
             cycles [R(0x100, op::LD_A_DBC), R(0x2030, 42)]
@@ -1280,6 +1350,16 @@ mod tests {
             given { hl: 0xC040, a: 42 }
             cycles [R(0x100, op::LD_DHL_A), W(0xC040, 42)]
             expect { pc: 0x101 }
+
+        add_a_b:
+            given { a: 8, b: 9, f: (flag::Z | flag::N | flag::C).into() }
+            cycles [R(0x100, op::ADD_A_B)]
+            expect { pc: 0x101, a: 17, f: flag::H.into() }
+
+        adc_a_dhl:
+            given { a: 130, hl: 0x8080, f: (flag::H | flag::C).into() }
+            cycles [R(0x100, op::ADC_A_DHL), R(0x8080, 128)]
+            expect { pc: 0x101, a: 3, f: flag::C.into() }
 
         and_a_b:
             given { a: 0b1010, b: 0b1_0000, f: (flag::C | flag::H).into() }
