@@ -232,6 +232,7 @@ opcodes! {
     PUSH_HL     = 0xE5, "PUSH", HL;
     AND_A_IMM8  = 0xE6, "AND", A, Imm8;
     RST_20      = 0xE7, "RST $20";
+    JP_HL       = 0xE9, "JP", HL;
     LD_ADDR_A   = 0xEA, "LD", Addr, A;
     XOR_A_IMM8  = 0xEE, "XOR", A, Imm8;
     RST_28      = 0xEF, "RST $28";

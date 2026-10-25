@@ -398,6 +398,7 @@ impl CPU {
             op::LDH_C_A => self.ldh_8(bus, Operand::C, Operand::A),
             op::AND_A_IMM8 => self.and(bus, Operand::Imm8),
             op::RST_20 => self.rst(bus, 0x20),
+            op::JP_HL => self.jp_hl(bus),
             op::LD_ADDR_A => self.ld_deref_imm16(bus, true),
             op::XOR_A_IMM8 => self.xor(bus, Operand::Imm8),
             op::RST_28 => self.rst(bus, 0x28),
@@ -825,6 +826,11 @@ impl CPU {
             },
             _ => unreachable!(),
         }
+    }
+
+    fn jp_hl(&mut self, _bus: &mut impl Bus) -> ExecState {
+        self.set_pc(self.hl());
+        ExecState::Done
     }
 
     fn jr<F>(&mut self, bus: &mut impl Bus, cond: F) -> ExecState
