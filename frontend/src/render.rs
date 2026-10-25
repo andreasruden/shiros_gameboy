@@ -82,14 +82,14 @@ impl Render {
     }
 
     fn update_frame_buffer(&mut self) {
-        let (data, mut start) = self.consumer.read_new();
-        start %= (WIDTH * HEIGHT) as usize;
+        let (data, start) = self.consumer.read_new();
         for (i, pixel) in data.iter().enumerate() {
-            let pixel_start = 3 * start + 3 * i;
+            let pixel_num = (start + i) % (WIDTH * HEIGHT) as usize;
+            let pixel_index = 3 * pixel_num;
             let rgb = PALETTE[(pixel & 3) as usize];
-            self.frame_buffer[pixel_start + 0] = rgb[0];
-            self.frame_buffer[pixel_start + 1] = rgb[1];
-            self.frame_buffer[pixel_start + 2] = rgb[2];
+            self.frame_buffer[pixel_index + 0] = rgb[0];
+            self.frame_buffer[pixel_index + 1] = rgb[1];
+            self.frame_buffer[pixel_index + 2] = rgb[2];
         }
     }
 
