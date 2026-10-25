@@ -207,7 +207,9 @@ opcodes! {
     OR_A_A      = 0xB7, "OR", A, A;
 
     RET_NZ      = 0xC0, "RET NZ";
+    POP_BC      = 0xC1, "POP", BC;
     JP          = 0xC3, "JP", Imm16;
+    PUSH_BC     = 0xC5, "PUSH", BC;
     ADD_A_IMM8  = 0xC6, "ADD", A, Imm8;
     RST_00      = 0xC7, "RST $00";
     RET_Z       = 0xC8, "RET Z";
@@ -218,12 +220,16 @@ opcodes! {
     RST_08      = 0xCF, "RST $08";
 
     RET_NC      = 0xD0, "RET NC";
+    POP_DE      = 0xD1, "POP", DE;
+    PUSH_DE     = 0xD5, "PUSH", DE;
     RST_10      = 0xD7, "RST $10";
     RET_C       = 0xD8, "RET C";
     RST_18      = 0xDF, "RST $18";
 
     LDH_IMM8_A  = 0xE0, "LDH", Imm8, A;
+    POP_HL      = 0xE1, "POP", HL;
     LDH_C_A     = 0xE2, "LDH", C, A;
+    PUSH_HL     = 0xE5, "PUSH", HL;
     AND_A_IMM8  = 0xE6, "AND", A, Imm8;
     RST_20      = 0xE7, "RST $20";
     LD_ADDR_A   = 0xEA, "LD", Addr, A;
@@ -231,8 +237,10 @@ opcodes! {
     RST_28      = 0xEF, "RST $28";
 
     LDH_A_IMM8  = 0xF0, "LDH", A, Imm8;
+    POP_AF      = 0xF1, "POP", AF;
     LDH_A_C     = 0xF2, "LDH", A, C;
     DI          = 0xF3, "DI";
+    PUSH_AF     = 0xF5, "PUSH", AF;
     OR_A_IMM8   = 0xF6, "OR", A, Imm8;
     RST_30      = 0xF7, "RST $30";
     LD_SP_HL    = 0xF9, "LD", SP, HL;

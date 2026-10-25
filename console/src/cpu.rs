@@ -63,7 +63,7 @@ impl CPU {
     pub fn set_af(&mut self, af: u16) {
         let [a, f] = af.to_be_bytes();
         self.a = a;
-        self.f = f;
+        self.f = f & 0xF0;  // lowest byte of F not writable to
     }
 
     pub fn bc(&self) -> u16 {
@@ -371,7 +371,9 @@ impl CPU {
 
             // CX
             op::RET_NZ => self.ret_test(bus, flag::Z, false),
+            op::POP_BC => self.pop(bus, Operand::BC),
             op::JP => self.jp(bus),
+            op::PUSH_BC => self.push(bus, Operand::BC),
             op::ADD_A_IMM8 => self.add(bus, Operand::Imm8, false),
             op::RST_00 => self.rst(bus, 0x00),
             op::RET_Z => self.ret_test(bus, flag::Z, true),
@@ -383,11 +385,15 @@ impl CPU {
 
             // DX
             op::RET_NC => self.ret_test(bus, flag::C, false),
+            op::POP_DE => self.pop(bus, Operand::DE),
+            op::PUSH_DE => self.push(bus, Operand::DE),
             op::RST_10 => self.rst(bus, 0x10),
             op::RET_C => self.ret_test(bus, flag::C, true),
             op::RST_18 => self.rst(bus, 0x18),
 
             // EX
+            op::POP_HL => self.pop(bus, Operand::HL),
+            op::PUSH_HL => self.push(bus, Operand::HL),
             op::LDH_IMM8_A => self.ldh_12(bus, Operand::Imm8, Operand::A),
             op::LDH_C_A => self.ldh_8(bus, Operand::C, Operand::A),
             op::AND_A_IMM8 => self.and(bus, Operand::Imm8),
@@ -397,6 +403,8 @@ impl CPU {
             op::RST_28 => self.rst(bus, 0x28),
 
             // FX
+            op::POP_AF => self.pop(bus, Operand::AF),
+            op::PUSH_AF => self.push(bus, Operand::AF),
             op::LDH_A_IMM8 => self.ldh_12(bus, Operand::A, Operand::Imm8),
             op::LDH_A_C => self.ldh_8(bus, Operand::A, Operand::C),
             op::DI => self.di(bus),
@@ -506,6 +514,7 @@ impl CPU {
 
     fn reg16(&self, reg: Operand) -> u16 {
         match reg {
+            Operand::AF => self.af(),
             Operand::BC => self.bc(),
             Operand::DE => self.de(),
             Operand::HL => self.hl(),
@@ -516,6 +525,7 @@ impl CPU {
 
     fn set_reg16(&mut self, reg: Operand, val: u16) {
         match reg {
+            Operand::AF => self.set_af(val),
             Operand::BC => self.set_bc(val),
             Operand::DE => self.set_de(val),
             Operand::HL => self.set_hl(val),
@@ -721,10 +731,10 @@ impl CPU {
             0 => ExecState::Partial,
             1 => { self.z = self.load_pc(bus); ExecState::Partial },
             2 => { self.w = self.load_pc(bus); ExecState::Partial },
-            3 => { self.sp -= 1; ExecState::Partial },
+            3 => { self.sp = self.sp.wrapping_sub(1); ExecState::Partial },
             4 => {
                 bus.write(self.sp, (self.pc >> 8) as u8);
-                self.sp -= 1;
+                self.sp = self.sp.wrapping_sub(1);
                 ExecState::Partial
             },
             5 => {
@@ -739,10 +749,10 @@ impl CPU {
     fn rst(&mut self, bus: &mut impl Bus, addr: u16) -> ExecState {
         match self.m {
             0 => ExecState::Partial,
-            1 => { self.sp -= 1; ExecState::Partial },
+            1 => { self.sp = self.sp.wrapping_sub(1); ExecState::Partial },
             2 => {
                 bus.write(self.sp, self.pc as u8);
-                self.sp -= 1;
+                self.sp = self.sp.wrapping_sub(1);
                 ExecState::Partial
             },
             3 => {
@@ -759,12 +769,12 @@ impl CPU {
             0 => ExecState::Partial,
             1 => {
                 self.z = bus.read(self.sp());
-                self.set_sp(self.sp() + 1);
+                self.sp = self.sp.wrapping_add(1);
                 ExecState::Partial
             },
             2 => {
                 self.w = bus.read(self.sp());
-                self.set_sp(self.sp() + 1);
+                self.sp = self.sp.wrapping_add(1);
                 ExecState::Partial
             },
             3 => {
@@ -787,12 +797,12 @@ impl CPU {
             },
             2 => {
                 self.z = bus.read(self.sp());
-                self.set_sp(self.sp() + 1);
+                self.sp = self.sp.wrapping_add(1);
                 ExecState::Partial
             },
             3 => {
                 self.w = bus.read(self.sp());
-                self.set_sp(self.sp() + 1);
+                self.sp = self.sp.wrapping_add(1);
                 ExecState::Partial
             },
             4 => {
@@ -1034,6 +1044,46 @@ impl CPU {
         self.update_flag(flag::C, self.z < self.w);
 
         ExecState::Done
+    }
+
+    fn push(&mut self, bus: &mut impl Bus, reg: Operand) -> ExecState {
+        match self.m {
+            0 => { ExecState::Partial },
+            1 => {
+                self.sp = self.sp.wrapping_sub(1);
+                ExecState::Partial
+            },
+            2 => {
+                let hi = (self.reg16(reg) >> 8) as u8;
+                bus.write(self.sp, hi);
+                self.sp = self.sp.wrapping_sub(1);
+                ExecState::Partial
+            },
+            3 => {
+                let lo = self.reg16(reg) as u8;
+                bus.write(self.sp, lo);
+                ExecState::Done
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn pop(&mut self, bus: &mut impl Bus, reg: Operand) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => {
+                self.z = bus.read(self.sp);
+                self.sp = self.sp.wrapping_add(1);
+                ExecState::Partial
+            },
+            2 => {
+                self.w = bus.read(self.sp);
+                self.sp = self.sp.wrapping_add(1);
+                self.set_reg16(reg, u16::from_le_bytes([self.z, self.w]));
+                ExecState::Done
+            },
+            _ => unreachable!(),
+        }
     }
 
     fn prefix(&mut self, bus: &mut impl Bus) -> ExecState {
@@ -1414,6 +1464,11 @@ mod tests {
             cycles[R(0x100, op::LDH_IMM8_A), R(0x101, 0xF1), W(0xFFF1, 42)]
             expect { pc: 0x102 }
 
+        pop_hl:
+            given { sp: 0xFFA0 }
+            cycles [R(0x100, op::POP_HL), R(0xFFA0, 0x88), R(0xFFA1, 0x3C)]
+            expect { pc: 0x101, sp: 0xFFA2, hl: 0x3C88 }
+
         ldh_deref_c_a:
             given { a: 42, c: 0xAA }
             cycles [R(0x100, op::LDH_C_A), W(0xFFAA, 42)]
@@ -1438,10 +1493,20 @@ mod tests {
             cycles[R(0x100, op::LDH_A_IMM8), R(0x101, 0xCC), R(0xFFCC, 42)]
             expect { pc: 0x102, a: 42 }
 
+        pop_af:
+            given { sp: 0xFFA0, f: flag::N.into() }
+            cycles [R(0x100, op::POP_AF), R(0xFFA0, 0x88), R(0xFFA1, 0x3C)]
+            expect { pc: 0x101, sp: 0xFFA2, af: 0x3C80, f: flag::Z.into() }
+
         di:
             given { ime: true as u16 }
             cycles [R(0x100, op::DI)]
             expect { pc: 0x101, ime: 0 }
+
+        push_af:
+            given { af: 0x3C40, sp: 0xFFA2 }
+            cycles [R(0x100, op::PUSH_AF), Idle, W(0xFFA1, 0x3C), W(0xFFA0, 0x40)]
+            expect { pc: 0x101, sp: 0xFFA0, f: flag::N.into() }
 
         ld_a_addr:
             cycles[R(0x100, op::LD_A_ADDR), R(0x101, 0xAF), R(0x102, 0xC0), R(0xC0AF, 42)]
