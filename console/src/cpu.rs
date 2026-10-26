@@ -476,7 +476,7 @@ impl CPU {
             op::RET_C => self.ret_test(bus, flag::C, true),
             op::RETI => self.ret(bus, true),
             op::JP_C_IMM16 => self.jp(bus, |s| s.is_set(flag::C)),
-            op::CALL_C_IMM16 => self.call_imm16(bus, |s| s.is_set(flag::Z)),
+            op::CALL_C_IMM16 => self.call_imm16(bus, |s| s.is_set(flag::C)),
             op::RST_18 => self.rst(bus, 0x18),
 
             // EX
@@ -872,12 +872,12 @@ impl CPU {
             0 => ExecState::Partial,
             1 => { self.sp = self.sp.wrapping_sub(1); ExecState::Partial },
             2 => {
-                bus.write(self.sp, self.pc as u8);
+                bus.write(self.sp, (self.pc >> 8) as u8);
                 self.sp = self.sp.wrapping_sub(1);
                 ExecState::Partial
             },
             3 => {
-                bus.write(self.sp, (self.pc >> 8) as u8);
+                bus.write(self.sp, self.pc as u8);
                 self.pc = addr;
                 ExecState::Done
             },

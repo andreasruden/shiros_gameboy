@@ -205,7 +205,9 @@ impl Debugger {
         match addr {
             0x0000..=0x3FFF => self.gameboy.cartridge.as_mut().unwrap().rom[addr as usize] = byte,
             0x8000..=0x9FFF => self.gameboy.vram[(addr - 0x8000) as usize] = byte,
-            0xFF00..=0xFFFF => self.gameboy.hw_reg.set(addr, byte),
+            0xC000..=0xDFFF => self.gameboy.wram[(addr - 0xC000) as usize] = byte,
+            0xFF80..=0xFFFE => self.gameboy.hram[(addr - 0xFF80) as usize] = byte,
+            0xFF00..=0xFF7F | 0xFFFF => self.gameboy.hw_reg.set(addr, byte),
             _ => todo!(),
         };
         println!("[${addr:04X}] = {}", self.read_memory(addr));
@@ -216,7 +218,9 @@ impl Debugger {
         match addr {
             0x0000..=0x3FFF => byte = self.gameboy.cartridge.as_ref().unwrap().rom[addr as usize],
             0x8000..=0x9FFF => byte = self.gameboy.vram[(addr - 0x8000) as usize],
-            0xFF00..=0xFFFF => byte = self.gameboy.hw_reg.get(addr),
+            0xC000..=0xDFFF => byte = self.gameboy.wram[(addr - 0xC000) as usize],
+            0xFF80..=0xFFFE => byte = self.gameboy.hram[(addr - 0xFF80) as usize],
+            0xFF00..=0xFF7F | 0xFFFF => byte = self.gameboy.hw_reg.get(addr),
             _ => todo!(),
         };
         byte
