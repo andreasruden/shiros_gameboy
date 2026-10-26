@@ -3,18 +3,19 @@ use std::{collections::HashSet, sync::atomic::{AtomicBool, Ordering}};
 use crate::{bus::Bus, gameboy::StopReason, opcodes::{CB_TARGETS, Operand, op}};
 
 pub struct CPU {
-    a: u8, f: u8,  // Accumulator & Flags
+    a: u8, f: u8,              // Accumulator & Flags
     b: u8, c: u8,
     d: u8, e: u8,
     h: u8, l: u8,
-    sp: u16, // Stack Pointer
-    pc: u16, // Program Counter
-    m: u8,   // counts m cycle into current instruction (0..=4)
-    ir: u8,  // instruction register
-    z: u8, w: u8,  // internal registers
-    ime: u8,  // interrupt master enable flag (0xFF = intermediate state)
+    sp: u16,                   // Stack Pointer
+    pc: u16,                   // Program Counter
+    m: u8,                     // counts m cycle into current instruction (0..=4)
+    ir: u8,                    // instruction register
+    z: u8, w: u8,              // internal registers
+    ime: u8,                   // interrupt master enable flag (0xFF = intermediate state)
+    halted: bool,              // true when HALT is used and interrupt has not fired yet
     debug: bool,
-    break_counter: i32, // debug break in this many instructions or -1
+    break_counter: i32,        // debug break in this many instructions or -1
     breakpoints: HashSet<u16>,
     stop_request: Option<&'static AtomicBool>,
 }
@@ -45,11 +46,16 @@ impl CPU {
             ir: 0,
             z: 0, w: 0,
             ime: 0,
+            halted: false,
             debug: false,
             break_counter: -1,
             breakpoints: HashSet::new(),
             stop_request: None,
         }
+    }
+
+    pub fn is_halted(&self) -> bool {
+        self.halted
     }
 
     pub fn af(&self) -> u16 {
@@ -169,6 +175,10 @@ impl CPU {
         if self.m == 0 {
             if let Some(reason) = self.should_break(bus) {
                 return reason;
+            }
+
+            if self.halted {
+                return StopReason::Cycle(4);
             }
 
             // Implementation of delay in EI instruction
@@ -317,6 +327,7 @@ impl CPU {
             op::LD_DHL_E => self.ld_byte(bus, Operand::DerefHL, Operand::E),
             op::LD_DHL_H => self.ld_byte(bus, Operand::DerefHL, Operand::H),
             op::LD_DHL_L => self.ld_byte(bus, Operand::DerefHL, Operand::L),
+            op::HALT => self.halt(bus),
             op::LD_DHL_A => self.ld_byte(bus, Operand::DerefHL, Operand::A),
             op::LD_A_B => self.ld_byte(bus, Operand::A, Operand::B),
             op::LD_A_C => self.ld_byte(bus, Operand::A, Operand::C),
@@ -1128,6 +1139,11 @@ impl CPU {
             },
             _ => unreachable!(),
         }
+    }
+
+    fn halt(&mut self, _bus: &mut impl Bus) -> ExecState {
+        self.halted = true;
+        ExecState::Done
     }
 
     fn prefix(&mut self, bus: &mut impl Bus) -> ExecState {

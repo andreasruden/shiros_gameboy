@@ -152,6 +152,7 @@ opcodes! {
     LD_DHL_E    = 0x73, "LD", DerefHL, E;
     LD_DHL_H    = 0x74, "LD", DerefHL, H;
     LD_DHL_L    = 0x75, "LD", DerefHL, L;
+    HALT        = 0x76, "HALT";
     LD_DHL_A    = 0x77, "LD", DerefHL, A;
     LD_A_B      = 0x78, "LD", A, B;
     LD_A_C      = 0x79, "LD", A, C;

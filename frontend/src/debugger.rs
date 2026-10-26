@@ -57,6 +57,9 @@ impl Debugger {
             let (text, _) = disassemble_next(&cart.rom, pc);
             println!("=> ${pc:04X}: {text}");
         }
+        if self.gameboy.cpu.is_halted() {
+            println!("CPU HALTED");
+        }
 
         match self.read_eval_loop() {
             Action::Continue => (),
