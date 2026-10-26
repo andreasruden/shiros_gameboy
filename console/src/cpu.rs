@@ -245,6 +245,8 @@ impl CPU {
             op::LD_SP_IMM16 => self.ld_word(bus, Operand::SP, Operand::Imm16),
             op::LDD_HL_A => self.ld_byte(bus, Operand::DerefHLMinus, Operand::A),
             op::INC_SP => self.inc_reg16(bus, Operand::SP),
+            op::INC_DHL => self.unit_step_deref_hl(bus, true),
+            op::DEC_DHL => self.unit_step_deref_hl(bus, false),
             op::LD_DHL_IMM8 => self.ld_deref_hl_imm8(bus),
             op::JR_C_IMM8 => self.jr(bus, |s| s.is_set(flag::C)),
             op::ADD_HL_SP => self.add_hl(bus, Operand::SP),
@@ -618,6 +620,25 @@ impl CPU {
         // No flags are updated for these decreases
 
         ExecState::Done
+    }
+
+    // Implements INC [HL] and DEC [HL]
+    fn unit_step_deref_hl(&mut self, bus: &mut impl Bus, add: bool) -> ExecState {
+        match self.m {
+            0 => ExecState::Partial,
+            1 => { self.z = bus.read(self.hl()); ExecState::Partial },
+            2 => {
+                let val = self.z;
+                let new_val = if add { val.wrapping_add(1) } else { val.wrapping_sub(1) };
+                let half_carry = if add { (val & 0x0F) == 0x0F } else { (new_val & 0x0F) == 0x0F };
+                bus.write(self.hl(), new_val);
+                self.update_flag(flag::Z, new_val == 0);
+                self.clear_flag(flag::N);
+                self.update_flag(flag::H, half_carry);
+                ExecState::Done
+            },
+            _ => unreachable!(),
+        }
     }
 
     // First operand is always A, and result is always stored into A
@@ -1374,6 +1395,11 @@ mod tests {
             given { a: 0b1010 }
             cycles [R(0x100, op::CPL)]
             expect { pc: 0x101, a: 0b11110101, f: (flag::H | flag::N).into() }
+
+        dec_dhl:
+            given {hl: 0x8080 }
+            cycles [R(0x100, op::DEC_DHL), R(0x8080, 0x20), W(0x8080, 0x1F)]
+            expect { pc: 0x101, f: flag::H.into() }
 
         ld_dhl_imm8:
             given { hl: 0xC000 }

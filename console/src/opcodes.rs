@@ -34,8 +34,6 @@ macro_rules! opcodes {
     };
 }
 
-// BC, DE, HL, SP
-
 opcodes! {
     NOP         = 0x00, "NOP";
     LD_BC_IMM16 = 0x01, "LD", BC, Imm16;
@@ -86,6 +84,8 @@ opcodes! {
     LD_SP_IMM16 = 0x31, "LD", SP, Imm16;
     LDD_HL_A    = 0x32, "LD", DerefHLMinus, A;
     INC_SP      = 0x33, "INC", SP;
+    INC_DHL     = 0x34, "INC", DerefHL;
+    DEC_DHL     = 0x35, "DEC", DerefHL;
     LD_DHL_IMM8 = 0x36, "LD", DerefHL, Imm8;
     JR_C_IMM8   = 0x38, "JR C,", Imm8;
     ADD_HL_SP   = 0x39, "ADD", HL, SP;
