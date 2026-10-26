@@ -10,6 +10,7 @@ extern "C" fn on_sigint(_: libc::c_int) {
 
 pub struct Debugger {
     gameboy: GameBoy,
+    last_line: String,
 }
 
 pub enum Action {
@@ -22,6 +23,7 @@ impl Debugger {
     pub fn new(gameboy: GameBoy) -> Self {
         Self {
             gameboy,
+            last_line: String::new(),
         }
     }
 
@@ -75,7 +77,13 @@ impl Debugger {
                 return Action::Stop;
             }
 
-            let cmd = line.trim();
+            let mut cmd = line.trim().to_string();
+            if cmd.len() > 0 {
+                self.last_line = cmd.to_string();
+            } else {
+                cmd = self.last_line.clone();
+            }
+
             let mut cmd_parts = cmd.split_whitespace();
             match (cmd_parts.next(), cmd_parts.next(), cmd_parts.next()) {
                 (Some("c" | "continue"), _, _) => return Action::Continue,
@@ -122,7 +130,7 @@ impl Debugger {
                 },
                 (Some("h" | "help"), _, _) => print_help(),
                 (Some(cmd), _, _) => println!("Undefined command: {cmd}. Try \"help\"."),
-                (None, _, _) => {},
+                _ => unreachable!(),
             }
         }
     }
