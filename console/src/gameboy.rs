@@ -19,7 +19,6 @@ pub struct GameBoy {
     pub wram: [u8; 0x2000],
     pub oam: [u8; 160],  // Object Attribute Memory
     pub hw_reg: HwRegisters,
-    pub ie_reg: u8,
     pub hram: [u8; 127],
 
     pub lcd_consumer: Option<Consumer>,
@@ -57,7 +56,6 @@ impl GameBoy {
             wram: [0; 0x2000],
             oam: [0; 160],
             hw_reg: HwRegisters::new(),
-            ie_reg: 0,
             hram: [0; 127],
             lcd_consumer: Some(lcd_consumer),
             debugged: false,

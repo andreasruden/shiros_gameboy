@@ -228,6 +228,7 @@ opcodes! {
     PUSH_DE     = 0xD5, "PUSH", DE;
     RST_10      = 0xD7, "RST $10";
     RET_C       = 0xD8, "RET C";
+    RETI        = 0xD9, "RETI";
     JP_C_IMM16  = 0xDA, "JP C,", Imm16;
     RST_18      = 0xDF, "RST $18";
 

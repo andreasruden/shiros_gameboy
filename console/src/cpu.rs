@@ -10,6 +10,7 @@ pub struct CPU {
     sp: u16,                   // Stack Pointer
     pc: u16,                   // Program Counter
     m: u8,                     // counts m cycle into current instruction (0..=4)
+    dispatch: u8,              // counts m cycles during interrupt dispatch
     ir: u8,                    // instruction register
     z: u8, w: u8,              // internal registers
     ime: u8,                   // interrupt master enable flag (0xFF = intermediate state)
@@ -33,6 +34,9 @@ enum ExecState {
     Partial,
 }
 
+const INTERRUPT_FLAG: u16 = 0xFF0F;
+const INTERRUPT_ENABLE: u16 = 0xFFFF;
+
 impl CPU {
     pub fn new() -> Self {
         Self {
@@ -43,6 +47,7 @@ impl CPU {
             sp: 0,
             pc: 0,
             m: 0,
+            dispatch: 0,
             ir: 0,
             z: 0, w: 0,
             ime: 0,
@@ -177,6 +182,10 @@ impl CPU {
                 return reason;
             }
 
+            if self.handle_interrupts(bus) {
+                return StopReason::Cycle(4);
+            }
+
             if self.halted {
                 return StopReason::Cycle(4);
             }
@@ -197,6 +206,56 @@ impl CPU {
         }
 
         StopReason::Cycle(4)
+    }
+
+    pub fn handle_interrupts(&mut self, bus: &mut impl Bus) -> bool {
+        let interrupts = bus.hw_reg().unwrap().get(INTERRUPT_FLAG) & bus.hw_reg().unwrap().get(INTERRUPT_ENABLE);
+        if interrupts == 0 && self.dispatch == 0 {
+            return false;
+        }
+        self.halted = false;
+
+        if self.ime != 1 {
+            return false;
+        }
+
+        let m = self.dispatch;
+        self.dispatch += 1;
+        match m {
+            0 => true,
+            1 => true,
+            2 => {
+                self.sp = self.sp.strict_sub(1);
+                bus.write(self.sp, (self.pc >> 8) as u8);
+                true
+            },
+            3 => {
+                self.sp = self.sp.strict_sub(1);
+                bus.write(self.sp, self.pc as u8);
+                true
+            },
+            4 => {
+                let (new_pc, bit) = match interrupts {
+                    i if i & (1 << 0) != 0 => (0x40, 0),  // VBLANK
+                    i if i & (1 << 1) != 0 => (0x48, 1),  // LCD
+                    i if i & (1 << 2) != 0 => (0x50, 2),  // Timer
+                    i if i & (1 << 3) != 0 => (0x58, 3),  // Serial
+                    i if i & (1 << 4) != 0 => (0x60, 4),  // Joypad
+                    _ => unreachable!(),
+                };
+                self.z = bit;
+                self.pc = new_pc;
+                true
+            },
+            5 => {
+                let i_f = bus.hw_reg().unwrap().get(INTERRUPT_FLAG);
+                bus.hw_reg().unwrap().set(INTERRUPT_FLAG, i_f & !(1 << self.z));
+                self.ime = 0;
+                self.dispatch = 0;
+                false
+            },
+            _ => unreachable!(),
+        }
     }
 
     // Implements the execute FSM
@@ -394,7 +453,7 @@ impl CPU {
             op::ADD_A_IMM8 => self.add(bus, Operand::Imm8, false),
             op::RST_00 => self.rst(bus, 0x00),
             op::RET_Z => self.ret_test(bus, flag::Z, true),
-            op::RET => self.ret(bus),
+            op::RET => self.ret(bus, false),
             op::JP_Z_IMM16 => self.jp(bus, |s| s.is_set(flag::Z)),
             op::PREFIX => self.prefix(bus),
             op::CALL_IMM16 => self.call_imm16(bus),
@@ -408,6 +467,7 @@ impl CPU {
             op::PUSH_DE => self.push(bus, Operand::DE),
             op::RST_10 => self.rst(bus, 0x10),
             op::RET_C => self.ret_test(bus, flag::C, true),
+            op::RETI => self.ret(bus, true),
             op::JP_C_IMM16 => self.jp(bus, |s| s.is_set(flag::C)),
             op::RST_18 => self.rst(bus, 0x18),
 
@@ -808,7 +868,7 @@ impl CPU {
         }
     }
 
-    fn ret(&mut self, bus: &mut impl Bus) -> ExecState {
+    fn ret(&mut self, bus: &mut impl Bus, is_reti: bool) -> ExecState {
         match self.m {
             0 => ExecState::Partial,
             1 => {
@@ -823,6 +883,9 @@ impl CPU {
             },
             3 => {
                 self.set_pc(u16::from_le_bytes([self.z, self.w]));
+                if is_reti {
+                    self.ime = 1;
+                }
                 ExecState::Done
             }
             _ => unreachable!(),
@@ -1235,6 +1298,7 @@ impl CPU {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bus::HwRegisters;
 
     #[derive(Debug, PartialEq, Eq)]
     enum Cycle {
@@ -1247,6 +1311,7 @@ mod tests {
     struct MockBus {
         cycles: Vec<Cycle>,
         pos: usize,
+        hw: HwRegisters,
     }
 
     impl MockBus {
@@ -1272,9 +1337,13 @@ mod tests {
                 other => panic!("expected {other:04X?}, got {:04X?}", W(addr, byte)),
             }
         }
+
+        fn hw_reg(&mut self) -> Option<&mut HwRegisters> {
+            Some(&mut self.hw)
+        }
     }
 
-    fn set_reg(cpu: &mut CPU, reg: &str, val: u16) {
+    fn set_reg(cpu: &mut CPU, hw: &mut HwRegisters, reg: &str, val: u16) {
         match reg {
             "a" => cpu.a = val as u8,
             "f" => cpu.f = val as u8,
@@ -1291,11 +1360,13 @@ mod tests {
             "sp" => cpu.sp = val,
             "pc" => cpu.pc = val,
             "ime" => cpu.ime = val as u8,
+            "i_f" => hw.set(INTERRUPT_FLAG, val as u8),
+            "ie" => hw.set(INTERRUPT_ENABLE, val as u8),
             _ => panic!("unknown register {reg}"),
         }
     }
 
-    fn regs(cpu: &CPU) -> [(&'static str, u16); 11] {
+    fn regs(cpu: &CPU, hw: &mut HwRegisters) -> [(&'static str, u16); 13] {
         [
             ("a", cpu.a as u16), ("f", cpu.f as u16),
             ("b", cpu.b as u16), ("c", cpu.c as u16),
@@ -1303,25 +1374,28 @@ mod tests {
             ("h", cpu.h as u16), ("l", cpu.l as u16),
             ("sp", cpu.sp), ("pc", cpu.pc),
             ("ime", cpu.ime as u16),
+            ("i_f", hw.get(INTERRUPT_FLAG) as u16),
+            ("ie", hw.get(INTERRUPT_ENABLE) as u16),
         ]
     }
 
     fn run(given: &[(&str, u16)], cycles: Vec<Cycle>, expect: &[(&str, u16)]) {
         let mut cpu = CPU::new();
         cpu.pc = 0x0100;
+        let mut bus = MockBus { cycles, pos: 0, hw: HwRegisters::new() };
         for &(reg, val) in given {
-            set_reg(&mut cpu, reg, val);
+            set_reg(&mut cpu, &mut bus.hw, reg, val);
         }
 
         let mut expected = CPU::new();
-        for (reg, val) in regs(&cpu) {
-            set_reg(&mut expected, reg, val);
+        let mut expected_hw = HwRegisters::new();
+        for (reg, val) in regs(&cpu, &mut bus.hw) {
+            set_reg(&mut expected, &mut expected_hw, reg, val);
         }
         for &(reg, val) in expect {
-            set_reg(&mut expected, reg, val);
+            set_reg(&mut expected, &mut expected_hw, reg, val);
         }
 
-        let mut bus = MockBus { cycles, pos: 0 };
         for cycle in 1.. {
             let pos = bus.pos;
             cpu.step(&mut bus);
@@ -1329,13 +1403,13 @@ mod tests {
                 bus.pos += 1;
             }
             assert_eq!(bus.pos, cycle, "cycle {cycle} did not match expectation");
-            if cpu.m == 0 && bus.pos == bus.cycles.len() {
+            if cpu.m == 0 && cpu.dispatch == 0 && bus.pos == bus.cycles.len() {
                 break;
             }
         }
 
         assert_eq!(bus.pos, bus.cycles.len(), "unconsumed cycles: {:04X?}", &bus.cycles[bus.pos..]);
-        let (actual, expected) = (regs(&cpu), regs(&expected));
+        let (actual, expected) = (regs(&cpu, &mut bus.hw), regs(&expected, &mut expected_hw));
         assert!(actual == expected, "registers differ\n  actual: {actual:04X?}\nexpected: {expected:04X?}");
     }
 
@@ -1532,6 +1606,16 @@ mod tests {
             given { f: flag::C.into(), sp: 0xFFE0 }
             cycles [R(0x100, op::RET_C), Idle, R(0xFFE0, 0x11), R(0xFFE1, 0xAA), Idle]
             expect { pc: 0xAA11, sp: 0xFFE2 }
+
+        reti:
+            given { sp: 0xFFF0, ime: 0 }
+            cycles [R(0x100, op::RETI), R(0xFFF0, 0x20), R(0xFFF1, 0x10), Idle]
+            expect { pc: 0x1020, sp: 0xFFF2, ime: 1 }
+
+        dispatch_vblank_interrupt:
+            given { pc: 0x1234, sp: 0xFFF0, ime: 1, i_f: 0b101, ie: 0b101 }
+            cycles [Idle, Idle, W(0xFFEF, 0x12), W(0xFFEE, 0x34), Idle, R(0x40, op::NOP)]
+            expect { pc: 0x41, sp: 0xFFEE, ime: 0, i_f: 0b100 }
 
         ldh_imm8_a:
             given { a: 42 }
