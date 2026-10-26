@@ -273,6 +273,7 @@ impl CPU {
             op::INC_B => self.inc_reg8(bus, Operand::B),
             op::DEC_B => self.dec_reg8(bus, Operand::B),
             op::LD_B_IMM8 => self.ld_byte(bus, Operand::B, Operand::Imm8),
+            op::RLCA => self.rotate_reg_a(bus, true, true),
             op::LD_ADDR_SP => self.ld_addr_sp(bus),
             op::ADD_HL_BC => self.add_hl(bus, Operand::BC),
             op::LD_A_DBC => self.ld_byte(bus, Operand::A, Operand::DerefBC),
@@ -280,6 +281,7 @@ impl CPU {
             op::INC_C => self.inc_reg8(bus, Operand::C),
             op::DEC_C => self.dec_reg8(bus, Operand::C),
             op::LD_C_IMM8 => self.ld_byte(bus, Operand::C, Operand::Imm8),
+            op::RRCA => self.rotate_reg_a(bus, false, true),
 
             // 1X
             op::LD_DE_IMM16 => self.ld_word(bus, Operand::DE, Operand::Imm16),
@@ -288,6 +290,7 @@ impl CPU {
             op::INC_D => self.inc_reg8(bus, Operand::D),
             op::DEC_D => self.dec_reg8(bus, Operand::D),
             op::LD_D_IMM8 => self.ld_byte(bus, Operand::D, Operand::Imm8),
+            op::RLA => self.rotate_reg_a(bus, true, false),
             op::JR_IMM8 => self.jr(bus, |_| true),
             op::ADD_HL_DE => self.add_hl(bus, Operand::DE),
             op::LD_A_DDE => self.ld_byte(bus, Operand::A, Operand::DerefDE),
@@ -295,6 +298,7 @@ impl CPU {
             op::INC_E => self.inc_reg8(bus, Operand::E),
             op::DEC_E => self.dec_reg8(bus, Operand::E),
             op::LD_E_IMM8 => self.ld_byte(bus, Operand::E, Operand::Imm8),
+            op::RRA => self.rotate_reg_a(bus, false, false),
 
             // 2X
             op::JR_NZ_IMM8 => self.jr(bus, |s| !s.is_set(flag::Z)),
@@ -1221,6 +1225,27 @@ impl CPU {
         }
     }
 
+    fn rotate_reg_a(&mut self, _bus: &mut impl Bus, left: bool, circular: bool) -> ExecState {
+        let val = self.a;
+        let bit = if left { 7 } else { 0 };
+        let carry_out = (val >> bit) & 1;
+        let shift_in = if circular { carry_out } else { self.is_set(flag::C) as u8 };
+
+        let res = if left {
+            val << 1 | shift_in
+        } else {
+            val >> 1 | (shift_in << 7)
+        };
+
+        self.a = res;
+        self.clear_flag(flag::Z);
+        self.clear_flag(flag::N);
+        self.clear_flag(flag::H);
+        self.update_flag(flag::C, carry_out != 0);
+
+        ExecState::Done
+    }
+
     fn halt(&mut self, _bus: &mut impl Bus) -> ExecState {
         self.halted = true;
         ExecState::Done
@@ -1459,6 +1484,11 @@ mod tests {
             given { b: 0, f: flag::Z.into() }
             cycles [R(0x0100, op::DEC_B)]
             expect { pc: 0x101, b: 0xFF, f: (flag::N | flag::H).into() }
+
+        rlca:
+            given { a: 0xA2 }
+            cycles [R(0x100, op::RLCA)]
+            expect { pc: 0x101, a: 0x45, f: flag::C.into() }
 
         ld_addr_sp:
             given { sp: 0xFFF0 }

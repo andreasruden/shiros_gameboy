@@ -42,6 +42,7 @@ opcodes! {
     INC_B         = 0x04, "INC", B;
     DEC_B         = 0x05, "DEC", B;
     LD_B_IMM8     = 0x06, "LD", B, Imm8;
+    RLCA          = 0x07, "RLCA";
     LD_ADDR_SP    = 0x08, "LD", Addr, SP;
     ADD_HL_BC     = 0x09, "ADD", HL, BC;
     LD_A_DBC      = 0x0A, "LD", A, DerefBC;
@@ -49,6 +50,7 @@ opcodes! {
     INC_C         = 0x0C, "INC", C;
     DEC_C         = 0x0D, "DEC", C;
     LD_C_IMM8     = 0x0E, "LD", C, Imm8;
+    RRCA          = 0x0F, "RRCA";
 
     LD_DE_IMM16   = 0x11, "LD", DE, Imm16;
     LD_DDE_A      = 0x12, "LD", DerefDE, A;
@@ -56,6 +58,7 @@ opcodes! {
     INC_D         = 0x14, "INC", D;
     DEC_D         = 0x15, "DEC", D;
     LD_D_IMM8     = 0x16, "LD", D, Imm8;
+    RLA           = 0x17, "RLA";
     JR_IMM8       = 0x18, "JR", Imm8;
     ADD_HL_DE     = 0x19, "ADD", HL, DE;
     LD_A_DDE      = 0x1A, "LD", A, DerefDE;
@@ -63,6 +66,7 @@ opcodes! {
     INC_E         = 0x1C, "INC", E;
     DEC_E         = 0x1D, "DEC", E;
     LD_E_IMM8     = 0x1E, "LD", E, Imm8;
+    RRA           = 0x1F, "RRA";
 
     JR_NZ_IMM8    = 0x20, "JR NZ,", Imm8;
     LD_HL_IMM16   = 0x21, "LD", HL, Imm16;
