@@ -123,6 +123,10 @@ impl CPU {
         self.pc = pc
     }
 
+    pub fn ime(&self) -> u8 {
+        self.ime
+    }
+
     pub fn set_debugged(&mut self, state: bool) {
         self.debug = state;
     }

@@ -154,6 +154,8 @@ impl Debugger {
         let cpu = &self.gameboy.cpu;
         println!("AF={:04X}  BC={:04X}  DE={:04X}  HL={:04X}", cpu.af(), cpu.bc(), cpu.de(), cpu.hl());
         println!("SP={:04X}  PC={:04X}  F={}", cpu.sp(), cpu.pc(), flags_string(cpu.f()));
+        println!("IF={:02X}    IE={:02X}    IME={}", self.gameboy.hw_reg.i_f, self.gameboy.hw_reg.ie,
+            self.gameboy.cpu.ime());
     }
 
     fn hexdump_memory(&mut self, start: u16, end: u16) {
