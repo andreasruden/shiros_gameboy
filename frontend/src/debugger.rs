@@ -53,10 +53,7 @@ impl Debugger {
         if let Some(addr) = watchpoint {
             println!("Watchpoint for address {:04X} triggered", addr);
         }
-        if let Some(cart) = &self.gameboy.cartridge {
-            let (text, _) = disassemble_next(&cart.rom, pc);
-            println!("=> ${pc:04X}: {text}");
-        }
+        self.disassemble(pc, pc);
         if self.gameboy.cpu.is_halted() {
             println!("CPU HALTED");
         }
@@ -118,6 +115,10 @@ impl Debugger {
                 (Some("wr" | "write"), arg1, arg2) => match (arg1, arg2) {
                     (Some(arg1), Some(arg2)) => self.write_cmd(arg1, arg2),
                     _ => println!("Error: command is \"write location value\""),
+                },
+                (Some("dis" | "disassemble"), arg1, arg2) => match parse_addr_range(arg1,arg2) {
+                    Ok((start_addr, end_addr)) => self.disassemble(start_addr, end_addr),
+                    Err(e) => println!("Error: {e}"),
                 },
                 (Some("h" | "help"), _, _) => print_help(),
                 (Some(cmd), _, _) => println!("Undefined command: {cmd}. Try \"help\"."),
@@ -212,6 +213,18 @@ impl Debugger {
         };
         byte
     }
+
+    fn disassemble(&mut self, start: u16, end: u16) {
+        let mut pc = start;
+        while pc <= end {
+            if let Some(cart) = &self.gameboy.cartridge {
+                let (text, new_pc) = disassemble_next(&cart.rom, pc);
+                let header = if self.gameboy.cpu.pc() == pc { "=> " } else { "" };
+                println!("{header}${pc:04X}: {text}");
+                pc = new_pc;
+            }
+        }
+    }
 }
 
 fn parse_count(arg: Option<&str>) -> Result<i32, String> {
@@ -276,13 +289,14 @@ fn flags_string(flags: u8) -> String {
 
 fn print_help() {
     println!("Available commands:");
-    println!("  c  | continue     run until next breakpoint or ctrl-c");
-    println!("  s  | step         run one instruction");
-    println!("  b  | break        break on address (arg1)");
-    println!("  d  | delete       delete breakpoint on address (arg1)");
-    println!("  w  | watch        break on writes between start (arg1) and end inclusively (arg2, optional)");
-    println!("  uw | unwatch      remove watch breakpoint range overlapping address (arg1)");
-    println!("  r  | registers    print the value of CPU registers");
-    println!("  m  | memory       dump the memory between start (arg1) and end inclusively (arg2, optional)");
-    println!("  wr | write        dump into address (arg1) the value specified (arg2)");
+    println!("  c   | continue       run until next breakpoint or ctrl-c");
+    println!("  s   | step           run one instruction");
+    println!("  b   | break          break on address (arg1)");
+    println!("  d   | delete         delete breakpoint on address (arg1)");
+    println!("  w   | watch          break on writes between start (arg1) and end inclusively (arg2, optional)");
+    println!("  uw  | unwatch        remove watch breakpoint range overlapping address (arg1)");
+    println!("  r   | registers      print the value of CPU registers");
+    println!("  m   | memory         dump the memory between start (arg1) and end inclusively (arg2, optional)");
+    println!("  wr  | write          dump into address (arg1) the value specified (arg2)");
+    println!("  dis | disassemble    disassemble between start (arg1) and end inclusively (arg2)");
 }
