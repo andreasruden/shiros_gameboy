@@ -449,6 +449,7 @@ impl CPU {
             op::POP_BC => self.pop(bus, Operand::BC),
             op::JP_NZ_IMM16 => self.jp(bus, |s| !s.is_set(flag::Z)),
             op::JP => self.jp(bus, |_| true),
+            op::CALL_NZ_IMM16 => self.call_imm16(bus, |s| !s.is_set(flag::Z)),
             op::PUSH_BC => self.push(bus, Operand::BC),
             op::ADD_A_IMM8 => self.add(bus, Operand::Imm8, false),
             op::RST_00 => self.rst(bus, 0x00),
@@ -456,7 +457,8 @@ impl CPU {
             op::RET => self.ret(bus, false),
             op::JP_Z_IMM16 => self.jp(bus, |s| s.is_set(flag::Z)),
             op::PREFIX => self.prefix(bus),
-            op::CALL_IMM16 => self.call_imm16(bus),
+            op::CALL_Z_IMM16 => self.call_imm16(bus, |s| s.is_set(flag::Z)),
+            op::CALL_IMM16 => self.call_imm16(bus, |_| true),
             op::ADC_A_IMM8 => self.add(bus, Operand::Imm8, true),
             op::RST_08 => self.rst(bus, 0x08),
 
@@ -464,11 +466,13 @@ impl CPU {
             op::RET_NC => self.ret_test(bus, flag::C, false),
             op::POP_DE => self.pop(bus, Operand::DE),
             op::JP_NC_IMM16 => self.jp(bus, |s| !s.is_set(flag::C)),
+            op::CALL_NC_IMM16 => self.call_imm16(bus, |s| !s.is_set(flag::C)),
             op::PUSH_DE => self.push(bus, Operand::DE),
             op::RST_10 => self.rst(bus, 0x10),
             op::RET_C => self.ret_test(bus, flag::C, true),
             op::RETI => self.ret(bus, true),
             op::JP_C_IMM16 => self.jp(bus, |s| s.is_set(flag::C)),
+            op::CALL_C_IMM16 => self.call_imm16(bus, |s| s.is_set(flag::Z)),
             op::RST_18 => self.rst(bus, 0x18),
 
             // EX
@@ -830,11 +834,20 @@ impl CPU {
         ExecState::Done
     }
 
-    fn call_imm16(&mut self, bus: &mut impl Bus) -> ExecState {
+    fn call_imm16<F>(&mut self, bus: &mut impl Bus, cond: F) -> ExecState
+    where
+        F: Fn(&Self) -> bool
+    {
         match self.m {
             0 => ExecState::Partial,
             1 => { self.z = self.load_pc(bus); ExecState::Partial },
-            2 => { self.w = self.load_pc(bus); ExecState::Partial },
+            2 => {
+                self.w = self.load_pc(bus);
+                if !cond(self) {
+                    return ExecState::Done;
+                }
+                ExecState::Partial
+            },
             3 => { self.sp = self.sp.wrapping_sub(1); ExecState::Partial },
             4 => {
                 bus.write(self.sp, (self.pc >> 8) as u8);
@@ -1583,6 +1596,16 @@ mod tests {
             given { sp: 0xFFE0 }
             cycles [R(0x100, op::RET), R(0xFFE0, 0x11), R(0xFFE1, 0xAA), Idle]
             expect { pc: 0xAA11, sp: 0xFFE2 }
+
+        call_z_imm16_not_taken:
+            given { sp: 0xFFF4 }
+            cycles [R(0x100, op::CALL_Z_IMM16), R(0x101, 0x3C), R(0x102, 0x02)]
+            expect { pc: 0x103, sp: 0xFFF4 }
+
+        call_z_imm16_taken:
+            given { sp: 0xFFF4, f: flag::Z.into() }
+            cycles [R(0x100, op::CALL_Z_IMM16), R(0x101, 0x3C), R(0x102, 0x02), Idle, W(0xFFF3, 0x01), W(0xFFF2, 0x03)]
+            expect { pc: 0x23C, sp: 0xFFF2 }
 
         call_imm16:
             given { sp: 0xFFF4 }
