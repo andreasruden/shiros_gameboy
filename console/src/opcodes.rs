@@ -211,6 +211,15 @@ opcodes! {
     OR_A_DHL      = 0xB6, "OR", A, DerefHL;
     OR_A_A        = 0xB7, "OR", A, A;
 
+    CP_A_B        = 0xB8, "CP", A, B;
+    CP_A_C        = 0xB9, "CP", A, C;
+    CP_A_D        = 0xBA, "CP", A, D;
+    CP_A_E        = 0xBB, "CP", A, E;
+    CP_A_H        = 0xBC, "CP", A, H;
+    CP_A_L        = 0xBD, "CP", A, L;
+    CP_A_DHL      = 0xBE, "CP", A, DerefHL;
+    CP_A_A        = 0xBF, "CP", A, A;
+
     RET_NZ        = 0xC0, "RET NZ";
     POP_BC        = 0xC1, "POP", BC;
     JP_NZ_IMM16   = 0xC2, "JP NZ,", Imm16;

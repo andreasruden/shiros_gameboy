@@ -452,6 +452,15 @@ impl CPU {
             op::OR_A_DHL => self.or(bus, Operand::DerefHL),
             op::OR_A_A => self.or(bus, Operand::A),
 
+            op::CP_A_B => self.cp(bus, Operand::B),
+            op::CP_A_C => self.cp(bus, Operand::C),
+            op::CP_A_D => self.cp(bus, Operand::D),
+            op::CP_A_E => self.cp(bus, Operand::E),
+            op::CP_A_H => self.cp(bus, Operand::H),
+            op::CP_A_L => self.cp(bus, Operand::L),
+            op::CP_A_DHL => self.cp(bus, Operand::DerefHL),
+            op::CP_A_A => self.cp(bus, Operand::A),
+
             // CX
             op::RET_NZ => self.ret_test(bus, flag::Z, false),
             op::POP_BC => self.pop(bus, Operand::BC),
@@ -507,7 +516,7 @@ impl CPU {
             op::LD_A_ADDR => self.ld_deref_imm16(bus, false),
             op::EI => self.ei(bus),
             op::RST_38 => self.rst(bus, 0x38),
-            op::CP_A_IMM8 => self.cp(bus, Operand::A, Operand::Imm8),
+            op::CP_A_IMM8 => self.cp(bus, Operand::Imm8),
 
             _ => unimplemented!("opcode={:02X} at PC={:04X}", self.ir, self.pc - 1),
         }
@@ -1160,27 +1169,26 @@ impl CPU {
         ExecState::Done
     }
 
-    fn cp(&mut self, bus: &mut impl Bus, lhs: Operand, rhs: Operand) -> ExecState {
-        // Only implements CP a, imm8 currently
+    // Implements opcodes CP A, Operand to do compare
+    fn cp(&mut self, bus: &mut impl Bus, rhs: Operand) -> ExecState {
         match self.m {
             0 => {
-                if !lhs.is_mem() {
-                    self.z = self.reg8(lhs);
+                if rhs.is_mem() {
+                    return ExecState::Partial;
                 }
-                return ExecState::Partial;
             }
             1 => {
                 if rhs.is_mem() {
-                    self.w = self.load_mem(bus, rhs);
+                    self.z = self.load_mem(bus, rhs);
                 }
             },
             _ => unreachable!(),
         }
 
-        self.update_flag(flag::Z, self.z == self.w);
+        self.update_flag(flag::Z, self.a == self.z);
         self.set_flag(flag::N);
-        self.update_flag(flag::H, (self.z & 0xF) < (self.w & 0xF));
-        self.update_flag(flag::C, self.z < self.w);
+        self.update_flag(flag::H, (self.a & 0xF) < (self.z & 0xF));
+        self.update_flag(flag::C, self.a < self.z);
 
         ExecState::Done
     }
