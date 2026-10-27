@@ -186,6 +186,23 @@ opcodes! {
     ADC_A_DHL     = 0x8E, "ADC", A, DerefHL;
     ADC_A_A       = 0x8F, "ADC", A, A;
 
+    SUB_A_B       = 0x90, "SUB", A, B;
+    SUB_A_C       = 0x91, "SUB", A, C;
+    SUB_A_D       = 0x92, "SUB", A, D;
+    SUB_A_E       = 0x93, "SUB", A, E;
+    SUB_A_H       = 0x94, "SUB", A, H;
+    SUB_A_L       = 0x95, "SUB", A, L;
+    SUB_A_DHL     = 0x96, "SUB", A, DerefHL;
+    SUB_A_A       = 0x97, "SUB", A, A;
+    SBC_A_B       = 0x98, "SBC", A, B;
+    SBC_A_C       = 0x99, "SBC", A, C;
+    SBC_A_D       = 0x9A, "SBC", A, D;
+    SBC_A_E       = 0x9B, "SBC", A, E;
+    SBC_A_H       = 0x9C, "SBC", A, H;
+    SBC_A_L       = 0x9D, "SBC", A, L;
+    SBC_A_DHL     = 0x9E, "SBC", A, DerefHL;
+    SBC_A_A       = 0x9F, "SBC", A, A;
+
     AND_A_B       = 0xA0, "AND", A, B;
     AND_A_C       = 0xA1, "AND", A, C;
     AND_A_D       = 0xA2, "AND", A, D;
@@ -243,11 +260,13 @@ opcodes! {
     JP_NC_IMM16   = 0xD2, "JP NC,", Imm16;
     CALL_NC_IMM16 = 0xD4, "CALL NC,", Imm16;
     PUSH_DE       = 0xD5, "PUSH", DE;
+    SUB_A_IMM8    = 0xD6, "SUB", A, Imm8;
     RST_10        = 0xD7, "RST $10";
     RET_C         = 0xD8, "RET C";
     RETI          = 0xD9, "RETI";
     JP_C_IMM16    = 0xDA, "JP C,", Imm16;
     CALL_C_IMM16  = 0xDC, "CALL C,", Imm16;
+    SBC_A_IMM8    = 0xDE, "SBC", A, Imm8;
     RST_18        = 0xDF, "RST $18";
 
     LDH_IMM8_A    = 0xE0, "LDH", Imm8, A;

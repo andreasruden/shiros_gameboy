@@ -425,6 +425,23 @@ impl CPU {
             op::ADC_A_DHL => self.add(bus, Operand::DerefHL, true),
             op::ADC_A_A => self.add(bus, Operand::A, true),
 
+            op::SUB_A_B => self.sub(bus, Operand::B, false),
+            op::SUB_A_C => self.sub(bus, Operand::C, false),
+            op::SUB_A_D => self.sub(bus, Operand::D, false),
+            op::SUB_A_E => self.sub(bus, Operand::E, false),
+            op::SUB_A_H => self.sub(bus, Operand::H, false),
+            op::SUB_A_L => self.sub(bus, Operand::L, false),
+            op::SUB_A_DHL => self.sub(bus, Operand::DerefHL, false),
+            op::SUB_A_A => self.sub(bus, Operand::A, false),
+            op::SBC_A_B => self.sub(bus, Operand::B, true),
+            op::SBC_A_C => self.sub(bus, Operand::C, true),
+            op::SBC_A_D => self.sub(bus, Operand::D, true),
+            op::SBC_A_E => self.sub(bus, Operand::E, true),
+            op::SBC_A_H => self.sub(bus, Operand::H, true),
+            op::SBC_A_L => self.sub(bus, Operand::L, true),
+            op::SBC_A_DHL => self.sub(bus, Operand::DerefHL, true),
+            op::SBC_A_A => self.sub(bus, Operand::A, true),
+
             // AX
             op::AND_A_B => self.and(bus, Operand::B),
             op::AND_A_C => self.and(bus, Operand::C),
@@ -486,10 +503,12 @@ impl CPU {
             op::JP_NC_IMM16 => self.jp(bus, |s| !s.is_set(flag::C)),
             op::CALL_NC_IMM16 => self.call_imm16(bus, |s| !s.is_set(flag::C)),
             op::PUSH_DE => self.push(bus, Operand::DE),
+            op::SUB_A_IMM8 => self.sub(bus, Operand::Imm8, false),
             op::RST_10 => self.rst(bus, 0x10),
             op::RET_C => self.ret_test(bus, flag::C, true),
             op::RETI => self.ret(bus, true),
             op::JP_C_IMM16 => self.jp(bus, |s| s.is_set(flag::C)),
+            op::SBC_A_IMM8 => self.sub(bus, Operand::Imm8, true),
             op::CALL_C_IMM16 => self.call_imm16(bus, |s| s.is_set(flag::C)),
             op::RST_18 => self.rst(bus, 0x18),
 
@@ -748,6 +767,26 @@ impl CPU {
         self.clear_flag(flag::N);
         self.update_flag(flag::H, (self.a & 0xF) + (rhs & 0xF) + carry > 0xF);
         self.update_flag(flag::C, (self.a as u16) + (rhs as u16) + carry as u16 > 0xFF);
+
+        self.a = res;
+
+        ExecState::Done
+    }
+
+    // First operand is always A, and result is always stored into A
+    fn sub(&mut self, bus: &mut impl Bus, operand: Operand, with_carry: bool) -> ExecState {
+        if operand.is_mem() && self.m == 0 {
+            return ExecState::Partial;
+        }
+
+        let carry = if with_carry { self.is_set(flag::C) as u8 } else { 0 };
+        let rhs = if operand.is_mem() { self.load_mem(bus, operand) } else { self.reg8(operand) };
+        let res = self.a.wrapping_sub(rhs).wrapping_sub(carry);
+
+        self.update_flag(flag::Z, res == 0);
+        self.set_flag(flag::N);
+        self.update_flag(flag::H, (rhs & 0xF) + carry > (self.a & 0xF));
+        self.update_flag(flag::C, rhs as u16 + carry as u16 > self.a as u16);
 
         self.a = res;
 
@@ -1645,6 +1684,16 @@ mod tests {
             given { a: 130, hl: 0x8080, f: (flag::H | flag::C).into() }
             cycles [R(0x100, op::ADC_A_DHL), R(0x8080, 128)]
             expect { pc: 0x101, a: 3, f: flag::C.into() }
+
+        sub_a_b:
+            given { a: 17, b: 9, f: flag::C.into() }
+            cycles [R(0x100, op::SUB_A_B)]
+            expect { pc: 0x101, a: 8, f: (flag::N | flag::H).into() }
+
+        sbc_a_dhl:
+            given { a: 3, hl: 0x8080, f: flag::C.into() }
+            cycles [R(0x100, op::SBC_A_DHL), R(0x8080, 130)]
+            expect { pc: 0x101, a: 128, f: (flag::N | flag::C).into() }
 
         and_a_b:
             given { a: 0b1010, b: 0b1_0000, f: (flag::C | flag::H).into() }
