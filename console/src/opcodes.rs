@@ -75,6 +75,7 @@ opcodes! {
     INC_H         = 0x24, "INC", H;
     DEC_H         = 0x25, "DEC", H;
     LD_H_IMM8     = 0x26, "LD", H, Imm8;
+    DAA           = 0x27, "DAA";
     JR_Z_IMM8     = 0x28, "JR Z,", Imm8;
     ADD_HL_HL     = 0x29, "ADD", HL, HL;
     LDI_A_HL      = 0x2A, "LD", A, DerefHLPlus;

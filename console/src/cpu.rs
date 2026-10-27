@@ -308,6 +308,7 @@ impl CPU {
             op::INC_H => self.inc_reg8(bus, Operand::H),
             op::DEC_H => self.dec_reg8(bus, Operand::H),
             op::LD_H_IMM8 => self.ld_byte(bus, Operand::H, Operand::Imm8),
+            op::DAA => self.daa(bus),
             op::JR_Z_IMM8 => self.jr(bus, |s| s.is_set(flag::Z)),
             op::ADD_HL_HL => self.add_hl(bus, Operand::HL),
             op::LDI_A_HL => self.ld_byte(bus, Operand::A, Operand::DerefHLPlus),
@@ -1254,6 +1255,36 @@ impl CPU {
         ExecState::Done
     }
 
+    // Decimal Adjust Accumulator
+    // If ADD/SUB is performed with binary-coded decimal, this instruction can be ran after to convert
+    // the result to BCD too.
+    fn daa(&mut self, _bus: &mut impl Bus) -> ExecState {
+        let mut adjustment = 0;
+        if self.is_set(flag::N) {
+            if self.is_set(flag::H) {
+                adjustment += 6;
+            }
+            if self.is_set(flag::C) {
+                adjustment += 0x60;
+            }
+            self.a = self.a.wrapping_sub(adjustment);
+        } else {
+            if self.is_set(flag::H) || self.a & 0x0F > 9 {
+                adjustment += 6;
+            }
+            if self.is_set(flag::C) || self.a > 0x99 {
+                adjustment += 0x60;
+                self.set_flag(flag::C);
+            }
+            self.a = self.a.wrapping_add(adjustment);
+        }
+
+        self.update_flag(flag::Z, self.a == 0);
+        self.clear_flag(flag::H);
+
+        ExecState::Done
+    }
+
     fn halt(&mut self, _bus: &mut impl Bus) -> ExecState {
         self.halted = true;
         ExecState::Done
@@ -1535,6 +1566,16 @@ mod tests {
             given  { hl: 0xC000, a: 42 }
             cycles [R(0x0100, op::LDI_HL_A), W(0xC000, 42)]
             expect { pc: 0x0101, a: 42, hl: 0xC001 }
+
+        daa_add:
+            given { a: 0x0F }
+            cycles [R(0x100, op::DAA)]
+            expect { pc: 0x101, a: 0x15 }
+
+        daa_sub:
+            given { a: 0x10, f: (flag::N | flag::H).into() }
+            cycles [R(0x100, op::DAA)]
+            expect { pc: 0x101, a: 0x0A, f: flag::N.into() }
 
         cpl:
             given { a: 0b1010 }
